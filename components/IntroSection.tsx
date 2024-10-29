@@ -1,0 +1,35 @@
+// components/IntroSection.tsx
+import Link from 'next/link';
+
+const IntroSection: React.FC = () => {
+  return (
+    <section className="hero min-h-screen bg-cover bg-center relative"
+    style={{ backgroundImage: "url('/HomePage-Main.png')" }}
+  >
+      <div className="hero-overlay bg-opacity-60"></div>
+      <div className="hero-content text-center text-neutral-content z-10">
+        <div className="max-w-md bg-base-100 bg-opacity-90 p-8 rounded-lg shadow-xl">
+          <h1 className="mb-5 text-5xl font-bold text-green-800">
+            EMPOWER, CONNECT, SUSTAIN.
+          </h1>
+          <p className="mb-5 text-lg text-gray-700">
+            Connect with suppliers and buyers of eco-friendly materials to ensure a sustainable future.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Link href="/signup" className="btn btn-primary">
+              Sign Up
+            </Link>
+            <Link href="/login" className="btn btn-secondary">
+              Member Login
+            </Link>
+          </div>
+          <p className="mt-5 text-sm text-gray-600">
+            *Cancel or pause for free at any time you want*
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default IntroSection;

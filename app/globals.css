@@ -2,10 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@font-face {
+  font-family: 'HelveticaNowText';
+  src: url('/fonts/HelveticaNowText-Thin.woff2') format('woff2'),
+       url('/fonts/HelveticaNowText-Thin.woff') format('woff'),
+       url('/fonts/HelveticaNowText-Thin.ttf') format('truetype');
+  font-weight: 300; /* Adjust weight as needed */
+  font-style: normal;
 }
+
+
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,5 +23,5 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'HelveticaNowText', sans-serif;
 }

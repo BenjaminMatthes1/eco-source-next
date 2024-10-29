@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        helvetica: ['HelveticaNowText', 'sans-serif'],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
@@ -15,5 +18,22 @@ const config: Config = {
     },
   },
   plugins: [require('daisyui')],
+  daisyui: {
+    themes: [
+      {
+        mytheme: {
+          primary: '#0B3D2E',
+          secondary: '#1ABC9C',
+          accent: '#2E8B57',
+          neutral: '#F4F6F6',
+          'base-100': '#FFFFFF',
+          info: '#2094f3',
+          success: '#009485',
+          warning: '#ff9900',
+          error: '#ff5724',
+        },
+      },
+    ],
+  },
 };
 export default config;
