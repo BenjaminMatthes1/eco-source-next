@@ -64,27 +64,27 @@ const CounterSection: React.FC = () => {
       <h2 className="text-4xl font-bold mb-8">Our Impact</h2>
       <div
         ref={counterSectionRef}
-        className="flex justify-center flex-wrap gap-8"
+        className="container mx-auto flex flex-row justify-center items-center gap-8"
       >
         <div className="stat place-items-center">
           <FaUsers className="text-5xl mb-2" />
           <div className="stat-value">{counters.members}+</div>
-          <div className="stat-desc">Members</div>
+          <div className="stat-desc text-2xl">Members</div>
         </div>
         <div className="stat place-items-center">
           <FaCloud className="text-5xl mb-2" />
           <div className="stat-value">{counters.co2Saved} Tons</div>
-          <div className="stat-desc">CO2 Saved</div>
+          <div className="stat-desc text-2xl">CO2 Saved</div>
         </div>
         <div className="stat place-items-center">
           <FaExchangeAlt className="text-5xl mb-2" />
           <div className="stat-value">{counters.transactions}</div>
-          <div className="stat-desc">Transactions</div>
+          <div className="stat-desc text-2xl">Transactions</div>
         </div>
         <div className="stat place-items-center">
           <FaLeaf className="text-5xl mb-2" />
           <div className="stat-value">{counters.productsExchanged}</div>
-          <div className="stat-desc">Products Exchanged</div>
+          <div className="stat-desc text-2xl">Products Exchanged</div>
         </div>
       </div>
     </section>

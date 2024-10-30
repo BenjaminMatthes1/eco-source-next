@@ -1,15 +1,22 @@
 // components/IntroSection.tsx
+'use client';
+
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 const IntroSection: React.FC = () => {
   return (
-    <section className="hero min-h-screen bg-cover bg-center relative"
-    style={{ backgroundImage: "url('/HomePage-Main.png')" }}
-  >
+    <motion.section
+      initial={{ opacity: 0, y: -50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 1, delay: 0.5 }}
+      className="hero min-h-screen bg-cover bg-center relative"
+      style={{ backgroundImage: "url('/HomePage-Main.png')" }}
+    >
       <div className="hero-overlay bg-opacity-60"></div>
       <div className="hero-content text-center text-neutral-content z-10">
         <div className="max-w-md bg-base-100 bg-opacity-90 p-8 rounded-lg shadow-xl">
-          <h1 className="mb-5 text-5xl font-bold text-green-800">
+          <h1 className="mb-5 text-5xl font-helvetica font-thin text-green-800">
             EMPOWER, CONNECT, SUSTAIN.
           </h1>
           <p className="mb-5 text-lg text-gray-700">
@@ -28,7 +35,7 @@ const IntroSection: React.FC = () => {
           </p>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 

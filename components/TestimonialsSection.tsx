@@ -6,7 +6,10 @@ const testimonials = [
     content: (
       <>
         <p>"Join our community and start making a difference."</p>
-        <Link href="/signup" className="btn btn-outline mt-4">
+        <Link
+          href="/signup"
+          className="btn bg-transparent text-white border border-white mt-4 hover:bg-secondary hover:text-black"
+        >
           Join Now
         </Link>
       </>
@@ -20,7 +23,10 @@ const testimonials = [
         <p>
           Stay updated with the latest news and insights on sustainability and eco-friendly practices.
         </p>
-        <Link href="/blog" className="btn btn-outline mt-4">
+        <Link
+          href="/blog"
+          className="btn bg-transparent text-white border border-white mt-4 hover:bg-secondary hover:text-black"
+        >
           Visit Blog
         </Link>
       </>
@@ -31,7 +37,10 @@ const testimonials = [
     content: (
       <>
         <p>"Be part of the change towards a sustainable future."</p>
-        <Link href="/signup" className="btn btn-outline mt-4">
+        <Link
+          href="/signup"
+          className="btn bg-transparent text-white border border-white mt-4 hover:bg-secondary hover:text-black"
+        >
           Join Now
         </Link>
       </>
@@ -42,15 +51,15 @@ const testimonials = [
 
 const TestimonialsSection: React.FC = () => {
   return (
-    <section className="py-12 bg-base-100 text-center">
-      <div className="flex flex-wrap justify-center gap-6">
+    <section className="py-12 bg-base-100 text-center mx-8">
+      <div className="flex flex-row justify-center items-stretch gap-6 ">
         {testimonials.map((testimonial, index) => (
           <div
             key={index}
-            className="relative w-full md:w-1/3 h-96 bg-cover bg-center rounded-lg shadow-lg overflow-hidden group"
+            className="relative w-full md:w-1/3 h-[700px] bg-cover bg-center rounded-lg shadow-lg overflow-hidden group transform transition-all duration-300 hover:scale-105 hover:z-10"
             style={{ backgroundImage: `url(${testimonial.bgImage})` }}
           >
-            <div className="absolute inset-0 bg-green-800 bg-opacity-75 flex flex-col justify-center items-center p-6 text-white transition-all duration-300 group-hover:bg-opacity-90">
+            <div className="absolute inset-0 bg-green-800 bg-opacity-50 flex flex-col justify-center items-center p-6 text-white transition-all duration-300 group-hover:bg-opacity-75">
               {testimonial.content}
             </div>
           </div>

@@ -12,7 +12,7 @@ const EcoFutureSection: React.FC = () => {
           loop
           muted
         ></video>
-        <div className="absolute inset-0 bg-green-800 bg-opacity-95 skew-x-[-60deg] origin-top-left"></div>
+        <div className="absolute inset-0 bg-green-800 bg-opacity-95 skew-x-[-60deg] origin-top-left -translate-y-96"></div>
       </div>
       <div className="relative z-10 p-12 max-w-xl text-white">
         <h2 className="text-4xl font-bold mb-6">
