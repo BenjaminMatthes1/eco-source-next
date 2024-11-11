@@ -26,7 +26,7 @@ const IntroSection: React.FC = () => {
             <Link href="/signup" className="btn btn-primary">
               Sign Up
             </Link>
-            <Link href="/login" className="btn btn-secondary">
+            <Link href="/login" className="btn btn-secondary text-neutral">
               Member Login
             </Link>
           </div>

@@ -25,3 +25,9 @@ body {
   background: var(--background);
   font-family: 'HelveticaNowText', sans-serif;
 }
+
+
+
+.btn-ghost:hover {
+  @apply bg-primary text-white;
+}

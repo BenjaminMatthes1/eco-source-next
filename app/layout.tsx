@@ -2,6 +2,8 @@
 import './globals.css';
 import NavBar from '../components/NavBar';
 import Footer from '../components/Footer';
+import { SessionProvider } from 'next-auth/react';
+import Providers from './providers';
 
 export const metadata = {
   title: 'Eco-Source',
@@ -16,12 +18,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="mytheme">
       <body>
-        <div className="flex flex-col min-h-screen">
-          <NavBar />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </div>
+        <Providers>{children}</Providers>
       </body>
+      <Footer/>
     </html>
   );
 }
