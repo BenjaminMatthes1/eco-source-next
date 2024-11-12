@@ -7,7 +7,7 @@ export interface IUser extends Document {
   password: string;
   image?: string;
   emailVerified?: Date;
-  subscriptionStatus?: string;
+  subscriptionStatus: 'free' | 'subscribed' | 'premium';
   role: string;
   interests: string[];
   location?: string;
