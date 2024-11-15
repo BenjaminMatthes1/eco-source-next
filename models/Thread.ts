@@ -1,23 +1,22 @@
 // models/Thread.ts
-// models/Thread.ts
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
 
-export interface IThread extends Document {
+export interface IThread {
   title: string;
   author: mongoose.Types.ObjectId;
   content: string;
   tags?: string[];
   views: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const ThreadSchema: Schema<IThread> = new Schema(
+const ThreadSchema = new Schema<IThread>(
   {
     title: { type: String, required: true },
-    author: { type: mongoose.Types.ObjectId, ref: 'User', required: true },
+    author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, required: true },
-    tags: [{ type: String }],
+    tags: { type: [String], default: [] },
     views: { type: Number, default: 0 },
   },
   {
@@ -33,3 +32,4 @@ const Thread: Model<IThread> =
   mongoose.models.Thread || mongoose.model<IThread>('Thread', ThreadSchema);
 
 export default Thread;
+

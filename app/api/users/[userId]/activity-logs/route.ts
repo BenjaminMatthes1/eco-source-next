@@ -1,38 +1,41 @@
-// pages/api/users/[userId]/activity-logs.ts
-import { NextApiRequest, NextApiResponse } from 'next';
+// app/api/users/[userId]/activity-logs/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import ActivityLog from '@/models/ActivityLog';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
   await connectToDatabase();
-  const session = await getSession({ req });
-  const { userId } = req.query;
-  const { page = 1, limit = 20 } = req.query;
+  const session = await getServerSession(authOptions);
+  const { userId } = params;
+  const { searchParams } = new URL(request.url);
+  const page = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 20;
 
   if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  // Only allow the user or an admin to access the logs
+  // Ensure only the user or an admin can access the logs
   if (session.user.id !== userId /* && !session.user.isAdmin */) {
-    return res.status(403).json({ message: 'Forbidden' });
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
-  if (req.method === 'GET') {
-    try {
-      const logs = await ActivityLog.find({ userId })
-        .sort({ createdAt: -1 })
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit))
-        .exec();
+  try {
+    // Fetch activity logs for the specified user
+    const logs = await ActivityLog.find({ userId })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
 
-      return res.status(200).json({ logs });
-    } catch (error) {
-      console.error('Error fetching activity logs:', error);
-      return res.status(500).json({ message: 'Error fetching activity logs' });
-    }
-  } else {
-    res.status(405).json({ message: 'Method not allowed' });
+    return NextResponse.json({ logs }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching activity logs:', error);
+    return NextResponse.json({ message: 'Error fetching activity logs' }, { status: 500 });
   }
 }

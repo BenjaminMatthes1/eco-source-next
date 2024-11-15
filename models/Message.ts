@@ -1,24 +1,23 @@
 // models/Message.ts
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMessage extends Document {
+  _id: mongoose.Types.ObjectId;
   conversationId: mongoose.Types.ObjectId;
-  sender: mongoose.Types.ObjectId;  // User ID
+  sender: mongoose.Types.ObjectId;
   content: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
-const MessageSchema: Schema<IMessage> = new Schema({
-  conversationId: { type: mongoose.Types.ObjectId, ref: 'Conversation' },
-  sender: { type: mongoose.Types.ObjectId, ref: 'User' },
-  content: { type: String },
-}, {
-  timestamps: { createdAt: true, updatedAt: false },
-});
+const MessageSchema = new Schema<IMessage>(
+  {
+    conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
+    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    content: { type: String, required: true },
+  },
+  { timestamps: true }
+);
 
-MessageSchema.index({ conversationId: 1, createdAt: -1 });
-MessageSchema.index({ sender: 1, createdAt: -1 });
-
-const Message: Model<IMessage> = mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);
-
+const Message = mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);
 export default Message;

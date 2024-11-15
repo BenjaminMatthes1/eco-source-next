@@ -14,7 +14,7 @@ const testimonials = [
         </Link>
       </>
     ),
-    bgImage: '/Testimonials-1.png',
+    bgImage: 'images/Testimonials-1.png',
   },
   {
     content: (
@@ -31,7 +31,7 @@ const testimonials = [
         </Link>
       </>
     ),
-    bgImage: '/Testimonials-2.png',
+    bgImage: 'images/Testimonials-2.png',
   },
   {
     content: (
@@ -45,7 +45,7 @@ const testimonials = [
         </Link>
       </>
     ),
-    bgImage: '/Testimonials-3.png',
+    bgImage: 'images/Testimonials-3.png',
   },
 ];
 

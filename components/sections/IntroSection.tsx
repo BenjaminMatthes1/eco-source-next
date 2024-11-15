@@ -11,7 +11,7 @@ const IntroSection: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1, delay: 0.5 }}
       className="hero min-h-screen bg-cover bg-center relative"
-      style={{ backgroundImage: "url('/HomePage-Main.png')" }}
+      style={{ backgroundImage: `url('images/HomePage-Main.png')` }}
     >
       <div className="hero-overlay bg-opacity-60"></div>
       <div className="hero-content text-center text-neutral-content z-10">

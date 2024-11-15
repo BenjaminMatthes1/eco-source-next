@@ -7,7 +7,7 @@ const EcoFutureSection: React.FC = () => {
       <div className="absolute inset-0">
         <video
           className="w-full h-full object-cover"
-          src="/Main_Video.mov"
+          src="videos/Main_Video.mov"
           autoPlay
           loop
           muted

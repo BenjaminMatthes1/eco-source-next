@@ -1,7 +1,7 @@
 // models/Profile.ts
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Model, HydratedDocument } from 'mongoose';
 
-export interface IProfile extends Document {
+export interface IProfile {
   userId: mongoose.Types.ObjectId;
   bio?: string;
   avatarUrl?: string;
@@ -11,10 +11,10 @@ export interface IProfile extends Document {
     linkedin?: string;
     facebook?: string;
     instagram?: string;
-    [key: string]: string | undefined; // For any additional platforms
+    [key: string]: string | undefined;
   };
-  badges?: string[]; // Or a more complex structure if needed
-  projects?: string[]; // Or references to project documents
+  badges?: string[];
+  projects?: string[];
   joinDate: Date;
   preferences?: {
     notifications?: {
@@ -24,45 +24,44 @@ export interface IProfile extends Document {
       [key: string]: boolean | undefined;
     };
     timeZone?: string;
-    // ... other preference fields
   };
-  // ... other profile-related fields
 }
 
-const ProfileSchema: Schema<IProfile> = new Schema(
+export type ProfileDocument = HydratedDocument<IProfile>;
+
+const ProfileSchema: Schema = new Schema(
   {
-    userId: { type: mongoose.Types.ObjectId, ref: 'User', unique: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', unique: true, required: true },
     bio: { type: String },
     avatarUrl: { type: String },
-    skills: [{ type: String }],
+    skills: { type: [String], default: [] },
     socialMediaLinks: {
-      twitter: { type: String },
-      linkedin: { type: String },
-      facebook: { type: String },
-      instagram: { type: String },
-      // Additional platforms can be added as needed
+      type: Map,
+      of: String,
+      default: {},
     },
-    badges: [{ type: String }],
-    projects: [{ type: String }],
+    badges: { type: [String], default: [] },
+    projects: { type: [String], default: [] },
     joinDate: { type: Date, default: Date.now },
     preferences: {
       notifications: {
-        email: { type: Boolean, default: true },
-        sms: { type: Boolean, default: false },
-        push: { type: Boolean, default: true },
-        // ... other notification types
+        type: Map,
+        of: Boolean,
+        default: {
+          email: true,
+          sms: false,
+          push: true,
+        },
       },
       timeZone: { type: String, default: 'UTC' },
-      // ... other preferences
     },
-    // ... other fields
   },
   {
     timestamps: true,
   }
 );
 
-const Profile: Model<IProfile> =
-  mongoose.models.Profile || mongoose.model<IProfile>('Profile', ProfileSchema);
+const Profile: Model<ProfileDocument> =
+  mongoose.models.Profile || mongoose.model<ProfileDocument>('Profile', ProfileSchema);
 
 export default Profile;

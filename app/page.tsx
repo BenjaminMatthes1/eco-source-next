@@ -1,10 +1,10 @@
 // app/page.tsx
-import IntroSection from '../components/IntroSection';
-import FeatureBlurbs from '../components/FeatureBlurbs';
-import CounterSection from '../components/CounterSection';
-import EcoFutureSection from '../components/EcoFutureSection';
-import TestimonialsSection from '../components/TestimonialsSection';
-import NavBar from '../components/NavBar';
+import IntroSection from '../components/sections/IntroSection';
+import FeatureBlurbs from '../components/sections/FeatureBlurbs';
+import CounterSection from '../components/sections/CounterSection';
+import EcoFutureSection from '../components/sections/EcoFutureSection';
+import TestimonialsSection from '../components/sections/TestimonialsSection';
+import NavBar from '../components/layout/NavBar';
 
 export default function Home() {
   return (

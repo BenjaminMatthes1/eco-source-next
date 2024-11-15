@@ -1,4 +1,3 @@
-// lib/mongooseClientPromise.ts
 import { MongoClient } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
@@ -8,12 +7,12 @@ if (!process.env.MONGODB_URI) {
 const uri = process.env.MONGODB_URI;
 const options = {};
 
-let client;
+let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 declare global {
   // eslint-disable-next-line no-var
-  var _mongooseClientPromise: Promise<MongoClient>;
+  var _mongooseClientPromise: Promise<MongoClient> | undefined;
 }
 
 if (!global._mongooseClientPromise) {

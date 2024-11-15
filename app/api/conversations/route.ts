@@ -1,15 +1,12 @@
-// app/api/conversations/[conversationId]/messages/route.ts
+// app/api/conversations/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
-import Message from '@/models/Message';
-import Conversation from '@/models/Conversation';
+import Conversation, { IConversation } from '@/models/Conversation';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
+import mongoose from 'mongoose';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { conversationId: string } }
-) {
+export async function POST(request: NextRequest) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
 
@@ -17,76 +14,30 @@ export async function GET(
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { conversationId } = params;
-  const { searchParams } = new URL(request.url);
-  const page = Number(searchParams.get('page')) || 1;
-  const limit = Number(searchParams.get('limit')) || 20;
+  const { participantIds } = await request.json(); // Array of user IDs to participate in the conversation
 
   try {
-    // Check if the user is part of the conversation
-    const conversation = await Conversation.findById(conversationId).exec();
-
-    if (
-      !conversation ||
-      !conversation.participants.includes(session.user.id)
-    ) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+    // Validate participant IDs as an array of strings
+    if (!Array.isArray(participantIds) || participantIds.some(id => typeof id !== 'string')) {
+      return NextResponse.json({ message: 'Invalid participant IDs' }, { status: 400 });
     }
 
-    const messages = await Message.find({ conversationId })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+    // Convert the session user ID and each participant ID to ObjectId
+    const participants = [
+      new mongoose.Types.ObjectId(session.user.id),
+      ...participantIds.map(id => new mongoose.Types.ObjectId(id)),
+    ];
 
-    return NextResponse.json({ messages }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json({ message: 'Error fetching messages' }, { status: 500 });
-  }
-}
+    // Create a new conversation, treating it as an instance of IConversation
+    const conversation = new Conversation({
+      participants,
+    }) as IConversation;
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { conversationId: string } }
-) {
-  await connectToDatabase();
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { conversationId } = params;
-  const { content } = await request.json();
-
-  try {
-    // Check if the user is part of the conversation
-    const conversation = await Conversation.findById(conversationId).exec();
-
-    if (
-      !conversation ||
-      !conversation.participants.includes(session.user.id)
-    ) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
-
-    const message = new Message({
-      conversationId,
-      sender: session.user.id,
-      content,
-    });
-
-    await message.save();
-
-    // Update lastMessage in Conversation
-    conversation.lastMessage = message._id;
-    conversation.updatedAt = new Date();
     await conversation.save();
 
-    return NextResponse.json({ message: 'Message sent', data: message }, { status: 201 });
+    return NextResponse.json({ message: 'Conversation created', conversation }, { status: 201 });
   } catch (error) {
-    console.error('Error sending message:', error);
-    return NextResponse.json({ message: 'Error sending message' }, { status: 500 });
+    console.error('Error creating conversation:', error);
+    return NextResponse.json({ message: 'Error creating conversation' }, { status: 500 });
   }
 }

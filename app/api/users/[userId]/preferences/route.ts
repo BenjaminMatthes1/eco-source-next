@@ -1,44 +1,45 @@
-// pages/api/users/[userId]/preferences.ts
-import { NextApiRequest, NextApiResponse } from 'next';
+// app/api/users/[userId]/preferences/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Profile from '@/models/Profile';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
   await connectToDatabase();
-  const session = await getSession({ req });
+  const session = await getServerSession(authOptions);
 
   if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { userId } = req.query;
+  const { userId } = params;
 
   // Ensure the user can only update their own preferences
   if (session.user.id !== userId) {
-    return res.status(403).json({ message: 'Forbidden' });
+    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
-  if (req.method === 'PUT') {
-    const { preferences } = req.body;
+  const { preferences } = await request.json();
 
-    try {
-      const profile = await Profile.findOneAndUpdate(
-        { userId },
-        { $set: { preferences } },
-        { new: true }
-      ).exec();
+  try {
+    // Update the user's preferences in their profile
+    const profile = await Profile.findOneAndUpdate(
+      { userId },
+      { $set: { preferences } },
+      { new: true }
+    ).exec();
 
-      if (!profile) {
-        return res.status(404).json({ message: 'Profile not found' });
-      }
-
-      return res.status(200).json({ profile });
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      return res.status(500).json({ message: 'Error updating preferences' });
+    if (!profile) {
+      return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
     }
-  } else {
-    res.status(405).json({ message: 'Method not allowed' });
+
+    return NextResponse.json({ profile }, { status: 200 });
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    return NextResponse.json({ message: 'Error updating preferences' }, { status: 500 });
   }
 }

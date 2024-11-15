@@ -1,11 +1,10 @@
-// lib/authOptions.ts
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
 import clientPromise from './mongooseClientPromise';
 import connectToDatabase from './mongodb';
-import User from '../models/User';
+import User, { IUser } from '@/models/User';
 
 export const authOptions: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise),
@@ -20,27 +19,26 @@ export const authOptions: NextAuthOptions = {
         if (!credentials || !credentials.email || !credentials.password) {
           throw new Error('Email and password are required');
         }
-      
+
         await connectToDatabase();
-      
-        const user = await User.findOne({ email: credentials.email });
-      
+
+        const user = await User.findOne({ email: credentials.email }) as IUser | null;
         if (!user) {
           throw new Error('No user found with the given email');
         }
-      
+
         const isValid = await bcrypt.compare(credentials.password, user.password);
-      
         if (!isValid) {
           throw new Error('Incorrect password');
         }
-      
+
         return {
           id: user._id.toString(),
-          name: user.name,
+          name: user.name || '',
           email: user.email,
+          role: user.role || 'user',
         };
-      }
+      },
     }),
   ],
   session: {
@@ -48,16 +46,16 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // Add user ID to token
       if (user) {
-        token.id = user.id;
+        token.id = user.id || '';
+        token.role = user.role || 'user';
       }
       return token;
     },
     async session({ session, token }) {
-      // Add user ID to session
       if (token) {
-        session.user.id = token.id;
+        session.user.id = (token.id as string) || '';
+        session.user.role = (token.role as string) || 'user';
       }
       return session;
     },

@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Thread from '@/models/Thread';
 import Post from '@/models/Post';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
 
-export async function GET(request: NextRequest, { params }: { params: { threadId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { threadId: string } }
+) {
   await connectToDatabase();
   const { threadId } = params;
   const { searchParams } = new URL(request.url);
@@ -14,12 +15,13 @@ export async function GET(request: NextRequest, { params }: { params: { threadId
   const limit = Number(searchParams.get('limit')) || 20;
 
   try {
+    // Fetch the thread by ID
     const thread = await Thread.findById(threadId).exec();
-
     if (!thread) {
       return NextResponse.json({ message: 'Thread not found' }, { status: 404 });
     }
 
+    // Fetch posts for the thread with pagination
     const posts = await Post.find({ threadId })
       .sort({ createdAt: 1 })
       .skip((page - 1) * limit)
