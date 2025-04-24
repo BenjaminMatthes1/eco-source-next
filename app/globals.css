@@ -1,0 +1,271 @@
+/* === Tailwind resets + utilities === */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+  ================
+  CUSTOM FONTS
+  ================
+*/
+
+/* EXAMPLE: HelveticaNowText in multiple weights, each as a separate "family" name. */
+
+/* --- Thin --- */
+@font-face {
+  font-family: 'HelveticaNowText-Thin';
+  src: url('/fonts/HelveticaNowText-Thin.woff2') format('woff2'),
+       url('/fonts/HelveticaNowText-Thin.woff') format('woff'),
+       url('/fonts/HelveticaNowText-Thin.ttf') format('truetype');
+  font-style: normal;
+  font-display: swap;
+}
+
+/* If you have Thin Italic */
+@font-face {
+  font-family: 'HelveticaNowText-ThinItalic';
+  src:
+       url('/fonts/HelveticaNowText-ThinItalic.woff') format('woff'),
+       url('/fonts/HelveticaNowText-ThinItalic.ttf') format('truetype');
+  font-weight: 100 1000;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* --- Regular --- */
+@font-face {
+  font-family: 'HelveticaNowText-Regular';
+  src: url('/fonts/HelveticaNowText-Regular.woff2') format('woff2'),
+       url('/fonts/HelveticaNowText-Regular.woff') format('woff'),
+       url('/fonts/HelveticaNowText-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Bold --- */
+@font-face {
+  font-family: 'HelveticaNowText-Bold';
+  src: url('/fonts/HelveticaNowText-Bold.woff2') format('woff2'),
+       url('/fonts/HelveticaNowText-Bold.woff') format('woff'),
+       url('/fonts/HelveticaNowText-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --- Light --- */
+@font-face {
+  font-family: 'HelveticaNowText-Light';
+  src:
+       url('/fonts/Helvetica-light.ttf') format('truetype');
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 
+  EXAMPLE: GeistMonoVF 
+  If this is a variable font, you can define a weight range:
+*/
+@font-face {
+  font-family: 'GeistMonoVF';
+  src: url('/fonts/GeistMonoVF.woff') format('woff');
+  font-weight: 100 1000; /* variable range, e.g. 100-700 */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Reddit Sans – Regular (400) ───────────────────────── */
+@font-face {
+  font-family: 'RedditSans-Regular';
+  src: url('/fonts/RedditSans-Regular.woff2') format('woff2'),
+       url('/fonts/RedditSans-Regular.woff')  format('woff'),
+       url('/fonts/RedditSans-Regular.ttf')   format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Regular Italic */
+@font-face {
+  font-family: 'RedditSans-Italic';
+  src: url('/fonts/RedditSans-Italic.woff2') format('woff2'),
+       url('/fonts/RedditSans-Italic.woff')  format('woff'),
+       url('/fonts/RedditSans-Italic.ttf')   format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Light (300) */
+@font-face {
+  font-family: 'RedditSans-Light';
+  src: url('/fonts/RedditSans-Light.woff2') format('woff2'),
+       url('/fonts/RedditSans-Light.woff')  format('woff'),
+       url('/fonts/RedditSans-Light.ttf')   format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Light Italic */
+@font-face {
+  font-family: 'RedditSans-LightItalic';
+  src: url('/fonts/RedditSans-LightItalic.woff2') format('woff2'),
+       url('/fonts/RedditSans-LightItalic.woff')  format('woff'),
+       url('/fonts/RedditSans-LightItalic.ttf')   format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* SemiBold (600) */
+@font-face {
+  font-family: 'RedditSans-SemiBold';
+  src: url('/fonts/RedditSans-SemiBold.woff2') format('woff2'),
+       url('/fonts/RedditSans-SemiBold.woff')  format('woff'),
+       url('/fonts/RedditSans-SemiBold.ttf')   format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SemiBold Italic */
+@font-face {
+  font-family: 'RedditSans-SemiBoldItalic';
+  src: url('/fonts/RedditSans-SemiBoldItalic.woff2') format('woff2'),
+       url('/fonts/RedditSans-SemiBoldItalic.woff')  format('woff'),
+       url('/fonts/RedditSans-SemiBoldItalic.ttf')   format('truetype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Bold (700) */
+@font-face {
+  font-family: 'RedditSans-Bold';
+  src: url('/fonts/RedditSans-Bold.woff2') format('woff2'),
+       url('/fonts/RedditSans-Bold.woff')  format('woff'),
+       url('/fonts/RedditSans-Bold.ttf')   format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold Italic */
+@font-face {
+  font-family: 'RedditSans-BoldItalic';
+  src: url('/fonts/RedditSans-BoldItalic.woff2') format('woff2'),
+       url('/fonts/RedditSans-BoldItalic.woff')  format('woff'),
+       url('/fonts/RedditSans-BoldItalic.ttf')   format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ExtraBold (800) */
+@font-face {
+  font-family: 'RedditSans-ExtraBold';
+  src: url('/fonts/RedditSans-ExtraBold.woff2') format('woff2'),
+       url('/fonts/RedditSans-ExtraBold.woff')  format('woff'),
+       url('/fonts/RedditSans-ExtraBold.ttf')   format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ExtraBold Italic */
+@font-face {
+  font-family: 'RedditSans-ExtraBoldItalic';
+  src: url('/fonts/RedditSans-ExtraBoldItalic.woff2') format('woff2'),
+       url('/fonts/RedditSans-ExtraBoldItalic.woff')  format('woff'),
+       url('/fonts/RedditSans-ExtraBoldItalic.ttf')   format('truetype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+
+
+
+/* 
+  ...Add any other fonts similarly...
+*/
+
+/* 
+  ======================
+  DARK MODE (optional)
+  ======================
+*/
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* 
+  ================
+  BASE STYLES
+  ================
+*/
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'HelveticaNowText-Thin', sans-serif;
+}
+
+/* 
+  If you want to use your Thin, Bold, or other font families, 
+  you'd do so by applying classes via Tailwind (e.g., "font-helveticaBold"),
+  or by overriding them in a class:
+  .some-thin-text { font-family: 'HelveticaNowText-Thin', sans-serif; }
+*/
+
+/* 
+  ================
+  CUSTOM STYLES
+  ================
+*/
+.btn-ghost:hover {
+  @apply bg-primary text-white;
+}
+
+@layer components {
+
+  /* ─── BASE ─────────────────────────────────────────── */
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2
+            px-4 py-2 rounded-md font-helveticaThin font-semibold
+            transition-all duration-200 ease-out;
+  }
+
+  /* ─── PRIMARY ──────────────────────────────────────── */
+  .btn-primary {
+    @apply btn-base bg-primary text-white;
+  }
+  .btn-primary:hover {
+    @apply scale-105 shadow-md;
+  }
+
+  /* ─── SECONDARY ────────────────────────────────────── */
+  .btn-secondary {
+    @apply btn-base bg-secondary text-black;
+  }
+  .btn-secondary:hover {
+    @apply scale-105 shadow-md;
+  }
+
+  /* ─── TERTIARY ─────────────────────────────────────── */
+  .btn-tertiary {
+    @apply btn-base bg-tertiary text-white;
+  }
+  .btn-tertiary:hover {
+    @apply scale-105 shadow-md;
+  }
+
+  /* Disabled state (shared) */
+  .btn-disabled {
+    @apply opacity-40 pointer-events-none;
+  }
+}
