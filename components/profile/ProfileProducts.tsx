@@ -43,16 +43,16 @@ const ProfileProducts = ({ userId }: { userId: string }) => {
       </div>
       {isExpanded && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((product) => (
+          {products.map((product) => 
             <div
               key={product._id}
               className="p-4 bg-white border rounded shadow-md hover:shadow-lg hover:bg-gray-100 cursor-pointer"
               onClick={() => router.push(`/products/${product._id}`)}
             >
-              <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
-              <p className="text-sm text-gray-600">{product.description}</p>
+              <h3 className="text-lg mb-2">{product.name}</h3>
+              <p className="text-sm text-black font-redditLight">{product.description}</p>
             </div>
-          ))}
+          )}
         </div>
       )}
       {!isExpanded && products.length === 0 && (

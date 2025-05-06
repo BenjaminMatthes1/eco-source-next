@@ -685,7 +685,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
                   <button
                     type="button"
                     onClick={handleDocUpload}
-                    className="btn btn-secondary text-sm font-medium whitespace-nowrap"
+                    className="btn btn-secondary "
                   >
                     Upload Doc
                   </button>
@@ -737,16 +737,16 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
         <div className="w-1/2 hidden md:flex flex-col items-center justify-center">
           <div className="bg-white bg-opacity-90 p-8 rounded-lg shadow-lg m-4 max-w-md">
             <h2 className="text-3xl font-bold mb-4 text-primary">Update Your Product</h2>
-            <p className="mb-4 text-primary">
+            <p className="mb-4 text-primary font-redditLight">
               Keep your product info up to date. Customers rely on accurate details to make 
               responsible, eco-friendly decisions.
             </p>
-            <ul className="list-disc list-inside mb-4 text-primary">
+            <ul className="list-disc list-inside mb-4 text-primary font-redditLight">
               <li>Showcase your new eco innovations</li>
               <li>Highlight updated ethical or sustainable practices</li>
               <li>Maintain credibility with verified docs</li>
             </ul>
-            <p className="mb-4 text-primary">
+            <p className="mb-4 text-primary font-redditLight">
               Stay current and stay green!
             </p>
           </div>
@@ -766,7 +766,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
                   />
                   <button
                     type="button"
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded text-xs"
+                    className="button-secondary"
                     onClick={() => handleDeletePhoto(photo._id.toString())}
                   >
                     X
@@ -791,8 +791,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
             />
             <label
               htmlFor="photoUpload"
-              className="inline-flex items-center px-4 py-2 bg-secondary text-white 
-                         rounded-md cursor-pointer hover:bg-accent focus:outline-none"
+              className="btn-tertiary pt-2 pb-4"
             >
               <FaLeaf className="mr-2" />
               <span>Select Photo(s)</span>
@@ -800,7 +799,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
             <button
               type="button"
               onClick={handlePhotoUpload}
-              className="btn btn-secondary text-sm font-medium ml-4"
+              className="btn btn-secondary ml-4"
             >
               Upload
             </button>

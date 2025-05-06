@@ -18,6 +18,27 @@ import {
 } from 'react-icons/fa';
 import { metricLabel } from '@/utils/metricOptions';
 import mongoose from 'mongoose';
+import CircularScore from '@/components/profile/CircularScore';
+import MetricCard from '@/components/ui/metricCard';
+
+
+
+type PeerMetric =
+  | { average: number; count: number }   // what you expect after ratings
+  | unknown;                            // any other placeholder
+
+function fmtPeer(metric: PeerMetric) {
+  if (
+    metric &&                           // not null / undefined
+    typeof metric === 'object' &&
+    'average' in metric &&
+    typeof (metric as any).average === 'number'
+  ) {
+    const m = metric as { average: number; count: number };
+    return `${m.average.toFixed(1)}/10 ( ${m.count} )`;
+  }
+  return '—/10 (0)';                    // fallback when no ratings yet
+}
 
 /* pretty-print any metric (same helper we used on services) */
 function formatMetric(key: string, val: any) {
@@ -58,49 +79,7 @@ function getScoreHue(score: number) {
   return (clamped * 120) / 100; // 0=red ->120=green
 }
 
-/** Circular ring for an ERS score */
-const CircularScore: React.FC<{ score: number }> = ({ score }) => {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  const hue = getScoreHue(score);
-  const strokeColor = `hsl(${hue}, 100%, 50%)`;
-
-  return (
-    <svg className="w-20 h-20" viewBox="0 0 100 100">
-      <circle
-        cx="50"
-        cy="50"
-        r={radius}
-        fill="white"
-        stroke="#e5e7eb"
-        strokeWidth="10"
-      />
-      <circle
-        cx="50"
-        cy="50"
-        r={radius}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="10"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-      />
-      <text
-        x="50"
-        y="50"
-        textAnchor="middle"
-        dy=".3em"
-        fontSize="26"
-        fontWeight="Black"
-        fill={strokeColor}
-      >
-        {score}%
-      </text>
-    </svg>
-  );
-};
+       
 
 const ProductDetailsPage: React.FC = () => {
   const { productId } = useParams();
@@ -117,6 +96,7 @@ const ProductDetailsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0);
   const [activePhotoIndex, setActivePhotoIndex] = useState<number>(0);
+  
 
   // Thumbnails
   const thumbnailRef = useRef<HTMLDivElement>(null);
@@ -290,6 +270,7 @@ const ProductDetailsPage: React.FC = () => {
   // Ownership check
   const actualUserId = typeof product.userId === 'object' ? product.userId._id : product.userId;
   const isOwner = session?.user?.id === actualUserId;
+  const alreadyReviewed = reviews.some(r => r.userId === session?.user?.id);
 
   // For user display
   const userName =
@@ -400,8 +381,8 @@ const ProductDetailsPage: React.FC = () => {
           </div>
 
           {/* Description + Category */}
-          <div className="mb-4">
-            <p className="font-helveticaThinItalic text-md text-gray-600 mb-2">
+          <div className="mb-4 font-redditLightItalic">
+            <p className="text-md text-gray-600 mb-2">
               <strong>Category:</strong>{' '}
               {product.categories && product.categories.join(', ') || 'N/A'}
             </p>
@@ -436,31 +417,38 @@ const ProductDetailsPage: React.FC = () => {
           )}
 
           {/* SYNERGY FIELDS */}
-          {product.chosenMetrics && product.metrics && (
-            <div className="space-y-2 text-md text-primary font-semibold">
-              {/* MATERIALS */}
-              {product.chosenMetrics.includes('materials') && Array.isArray(product.metrics.materials) && (
-                <p>
-                  <strong>Materials:</strong>{' '}
-                  {product.metrics.materials
-                    .map((m: any) =>
-                      `${m.name} (${m.percentageRecycled}% recycled, isRenewable=${m.isRenewable})`
-                    )
-                    .join(', ')}
-                </p>
+            {product.chosenMetrics && product.metrics && (
+            <div className="grid md:grid-cols-2 gap-4 mt-4">
+              {/* Materials handled first so it appears in order */}
+              {product.chosenMetrics.includes('materials') &&
+                Array.isArray(product.metrics.materials) && (
+                  <MetricCard
+                    label="Materials"
+                    value={product.metrics.materials
+                      .map((m: any) =>
+                        `${m.name} (${m.percentageRecycled}% recycled, renewable = ${m.isRenewable})`
+                      )
+                      .join(', ')}
+                  />
               )}
-              
-              {/* ── NEW DYNAMIC LIST  ───────────────────────────── */}
-                {product.chosenMetrics
-                  .filter((k) =>
-                    !['materials', 'costEffectiveness', 'economicViability'].includes(k)
-                  )
-                  .map((metricKey) => (
-                    <p key={metricKey}>
-                      <strong>{metricLabel(metricKey)}:</strong>{' '}
-                      {formatMetric(metricKey, product.metrics[metricKey])}
-                    </p>
-                ))}
+
+              {/* generic → every metric except the ones we special-case above/below */}
+              {product.chosenMetrics
+                .filter((k) =>
+                  !['materials', 'costEffectiveness', 'economicViability'].includes(k)
+                )
+                .map((metricKey) => (
+                  <MetricCard
+                    key={metricKey}
+                    label={metricLabel(metricKey)}
+                    value={
+                      typeof product.metrics[metricKey] === 'object'
+                        ? JSON.stringify(product.metrics[metricKey])
+                        : String(product.metrics[metricKey])
+                    }
+                    /* placeholder: later you can pass an extended description here */
+                  />
+              ))}
               
 
               {/* ── Peer Cost-Effectiveness ───────────────────── */}
@@ -470,12 +458,7 @@ const ProductDetailsPage: React.FC = () => {
                   typeof product.metrics.costEffectiveness === 'object' && (
                     <div className="p-4 border rounded mt-4 bg-white">
                       <h3 className="font-bold mb-2">Cost-Effectiveness (peer average)</h3>
-                      <p>
-                        {product.metrics.costEffectiveness.average.toFixed(1)}/10&nbsp;
-                        <span className="text-sm text-gray-500">
-                          (based on {product.metrics.costEffectiveness.count} ratings)
-                        </span>
-                      </p>
+                      <p>{fmtPeer(product.metrics.costEffectiveness as PeerMetric)}</p>
                     </div>
                   )
                 ) : (
@@ -527,12 +510,7 @@ const ProductDetailsPage: React.FC = () => {
                   typeof product.metrics.economicViability === 'object' && (
                     <div className="p-4 border rounded mt-4 bg-white">
                       <h3 className="font-bold mb-2">Economic Viability (peer average)</h3>
-                      <p>
-                        {product.metrics.economicViability.average.toFixed(1)}/10&nbsp;
-                        <span className="text-sm text-gray-500">
-                          (based on {product.metrics.economicViability.count} ratings)
-                        </span>
-                      </p>
+                      <p>{fmtPeer(product.metrics.costEffectiveness as PeerMetric)}</p>
                     </div>
                   )
                 ) : (
@@ -589,6 +567,7 @@ const ProductDetailsPage: React.FC = () => {
         {/* Reviews */}
         <div className="mt-10">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">Reviews</h2>
+          {!isOwner && !alreadyReviewed && (
           <form onSubmit={handleReviewSubmit} className="space-y-4 max-w-md">
             <div>
               <label htmlFor="rating" className="block text-sm font-medium">
@@ -625,6 +604,7 @@ const ProductDetailsPage: React.FC = () => {
               Submit Review
             </button>
           </form>
+          )}
           {error && <p className="text-red-500 mt-2">{error}</p>}
 
           <div className="space-y-4 mt-6">

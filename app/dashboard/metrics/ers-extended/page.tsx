@@ -12,6 +12,12 @@ import {
   DynamicInputs,
 } from '@/services/ersMetricsService';
 
+import CircularScore from '@/components/profile/CircularScore';
+import MetricSelect from '@/components/forms/MetricSelect';
+import { dropdownPrimaryWhiteMenu } from '@/utils/selectStyles';
+
+
+const PRIMARY = '#0B3D2E';
 /** 
  * Example user synergy keys 
  * (minus the old "certifications" array approach).
@@ -24,54 +30,17 @@ const USER_METRICS_OPTIONS = [
   { key: 'philanthropicDonations', label: 'Philanthropic Donations (%)' },
   { key: 'supplierEthics', label: 'Supplier Ethics (%)' },
   { key: 'volunteerPrograms', label: 'Volunteer Programs' },
+  
   // (We assume 'uploadedDocuments' is automatically inserted from the backend.)
 ];
+
+export const metricLabel = (key: string) =>
+  USER_METRICS_OPTIONS.find((m) => m.key === key)?.label ?? key;
 
 /** 
  * For synergy score ring
  */
-function getScoreHue(score: number) {
-  const clamped = Math.max(0, Math.min(100, score));
-  return (clamped * 120) / 100; 
-}
-const CircularScore: React.FC<{ label: string; score: number }> = ({ label, score }) => {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  const hue = getScoreHue(score);
-  const strokeColor = `hsl(${hue}, 100%, 50%)`;
 
-  return (
-    <div className="flex flex-col items-center">
-      <svg className="w-24 h-24" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="10"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-        <text
-          x="50"
-          y="50"
-          textAnchor="middle"
-          dy=".3em"
-          fontSize="16"
-          fontWeight="bold"
-          fill={strokeColor}
-        >
-          {score}%
-        </text>
-      </svg>
-      <p className="mt-1 text-sm font-semibold">{label}</p>
-    </div>
-  );
-};
 
 /** 
  * A small helper interface for user synergy
@@ -80,6 +49,13 @@ interface UserSynergy {
   chosenMetrics: string[];
   metrics: Record<string, any>;
 }
+
+const ScoreWithLabel: React.FC<{ label: string; score: number }> = ({ label, score }) => (
+  <div className="flex flex-col items-center">
+    <CircularScore score={score} />
+    <p className="mt-1 text-sm font-semibold">{label}</p>
+  </div>
+);
 
 /**
  * A simple component for uploading user documents (like products/services).
@@ -90,6 +66,9 @@ function UserDocumentsSection({ userId }: { userId: string }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [category, setCategory] = useState<string>('Other');
   const [error, setError] = useState('');
+
+  
+  
 
   useEffect(() => {
     // On mount, fetch the user => get existing docs
@@ -173,7 +152,8 @@ function UserDocumentsSection({ userId }: { userId: string }) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="select select-bordered"
+          className="w-60 bg-transparent border-b border-white text-white
++            focus:border-secondary focus:outline-none"
         >
           <option value="Other">Other</option>
           <option value="Certification">Certification</option>
@@ -268,6 +248,8 @@ export default function ExtendedERSMetricsPage() {
     })();
   }, [status, session, router]);
 
+  
+
   // ----------------- Recalc synergy whenever data changes
   useEffect(() => {
     if (!userSynergy) return;
@@ -311,6 +293,8 @@ export default function ExtendedERSMetricsPage() {
 
   }, [userSynergy, productSynergies, serviceSynergies]);
 
+  
+
   // ----------------- synergy editing for user
   function handleAddMetric() {
     if (!selectedMetric || !userSynergy) return;
@@ -345,6 +329,8 @@ export default function ExtendedERSMetricsPage() {
     if (!userSynergy) return null;
     const val = userSynergy.metrics[metricKey];
 
+    if (metricKey === 'uploadedDocuments') return null;
+
     if (typeof val === 'boolean') {
       // e.g. volunteerPrograms
       return (
@@ -362,7 +348,7 @@ export default function ExtendedERSMetricsPage() {
                 };
               });
             }}
-            className="toggle toggle-primary"
+            className="h-4 w-4 accent-secondary"
           />
           <button
             type="button"
@@ -391,7 +377,8 @@ export default function ExtendedERSMetricsPage() {
               };
             });
           }}
-          className="input input-bordered input-sm w-24"
+          className="flex-1 min-w-[8rem bg-transparent border-b border-white text-white
++            focus:border-secondary focus:outline-none text-sm"
         />
         <button
           type="button"
@@ -449,10 +436,10 @@ export default function ExtendedERSMetricsPage() {
 
       {/* Score Rings */}
       <div className="flex flex-wrap gap-6 justify-center">
-        <CircularScore label="User Score" score={userScore} />
-        <CircularScore label="Product Avg" score={avgProductScore} />
-        <CircularScore label="Service Avg" score={avgServiceScore} />
-        <CircularScore label="Overall" score={overallScore} />
+        <ScoreWithLabel label="User Score" score={userScore} />
+        <ScoreWithLabel label="Product Avg" score={avgProductScore} />
+        <ScoreWithLabel label="Service Avg" score={avgServiceScore} />
+        <ScoreWithLabel label="Overall" score={overallScore} />
       </div>
       <p className="text-sm text-gray-600">
         Overall Data Status: <strong>{overallDataStatus}</strong>
@@ -465,22 +452,16 @@ export default function ExtendedERSMetricsPage() {
         {/* Add user synergy metric */}
         <div>
           <label className="block text-sm font-medium mb-1">+ Add User Metric</label>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedMetric}
-              onChange={(e) => setSelectedMetric(e.target.value)}
-              className="select select-bordered w-60"
-            >
-              <option value="">-- Select a Metric --</option>
-              {USER_METRICS_OPTIONS.map((m) => (
-                <option key={m.key} value={m.key}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2 font-redditLight">
+          <MetricSelect
+            value={selectedMetric}
+            onChange={setSelectedMetric}
+            className="flex-1"
+            styles={dropdownPrimaryWhiteMenu}
+          />
             <button
               type="button"
-              className="btn btn-sm btn-accent"
+              className="btn-primary btn-sm"
               onClick={handleAddMetric}
             >
               + Add
@@ -489,16 +470,21 @@ export default function ExtendedERSMetricsPage() {
         </div>
 
         {userSynergy.chosenMetrics.length > 0 && (
-          <div className="space-y-3 mt-4 p-3 rounded-md bg-white">
-            <h3 className="text-sm font-semibold mb-2">Your Synergy Metrics</h3>
-            {userSynergy.chosenMetrics.map((metricKey) => (
-              <div key={metricKey} className="border p-2 rounded mb-2">
-                <label className="text-xs font-medium block mb-1">{metricKey}</label>
-                {renderMetricInput(metricKey)}
-              </div>
-            ))}
-          </div>
-        )}
+          <div className="mt-4 space-y-3 bg-primary/80 p-4 rounded-lg">
+            <h4 className="text-sm font-semibold text-white">ERS Metrics</h4>
+              {userSynergy.chosenMetrics
+              .filter(k => k !== 'uploadedDocuments')
+              .map((metricKey) => (
+                <div key={metricKey}>
+
+                <label className="block text-xs font-medium mb-1 text-white">
+                    {metricLabel(metricKey)}
+                  </label>
+                  {renderMetricInput(metricKey)}
+                </div>
+              ))}
+            </div>
+          )}
 
         <button type="submit" className="btn btn-primary w-full mt-4">
           Save User Synergy

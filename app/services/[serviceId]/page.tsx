@@ -6,10 +6,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import mongoose from 'mongoose';
+import CircularScore from '@/components/ui/circularScore';
 
 import { Service } from '@/types/types';
 import { calculateERSItemScore } from '@/services/ersMetricsService'; 
 import { metricLabel } from '@/utils/metricOptions';
+import MetricCard from '@/components/ui/metricCard';
 // or your synergy approach if you prefer "calculateERSServiceScore"
 
 /** Icon for doc category */
@@ -22,6 +24,23 @@ import {
   FaExclamationTriangle,
   FaFileAlt
 } from 'react-icons/fa';
+
+type PeerMetric =
+  | { average: number; count: number }   // what you expect after ratings
+  | unknown;                            // any other placeholder
+
+function fmtPeer(metric: PeerMetric) {
+  if (
+    metric &&                           // not null / undefined
+    typeof metric === 'object' &&
+    'average' in metric &&
+    typeof (metric as any).average === 'number'
+  ) {
+    const m = metric as { average: number; count: number };
+    return `${m.average.toFixed(1)}/10 ( ${m.count} )`;
+  }
+  return '—/10 (0)';                    // fallback when no ratings yet
+}
 
 
 /* pretty‑print any metric */
@@ -50,50 +69,6 @@ function getScoreHue(score: number) {
   return (clamped * 120) / 100; 
 }
 
-
-/** Circular ring for an ERS score */
-const CircularScore: React.FC<{ score: number }> = ({ score }) => {
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  const hue = getScoreHue(score);
-  const strokeColor = `hsl(${hue}, 100%, 50%)`;
-
-  return (
-    <svg className="w-20 h-20" viewBox="0 0 100 100">
-      <circle
-        cx="50"
-        cy="50"
-        r={radius}
-        fill="white"
-        stroke="#e5e7eb"
-        strokeWidth="10"
-      />
-      <circle
-        cx="50"
-        cy="50"
-        r={radius}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="10"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-      />
-      <text
-        x="50"
-        y="50"
-        textAnchor="middle"
-        dy=".3em"
-        fontSize="26"
-        fontWeight="Black"
-        fill={strokeColor}
-      >
-        {score}%
-      </text>
-    </svg>
-  );
-};
 
 /** Get doc icon by category */
 function getDocumentIcon(category: string | undefined) {
@@ -441,31 +416,46 @@ const ServiceDetailsPage: React.FC = () => {
           {ersScore !== null && (
             <div className="mb-4 flex items-center gap-4 bg-neutral p-2 justify-center rounded-md">
               <CircularScore score={ersScore} />
-              <span className="text-secondary text-xl font-bold">Service ERS Score</span>
+              <span className="text-secondary text-xl font-bold">
+                Service ERS Score
+              </span>
             </div>
           )}
 
           {/* synergy fields snippet */}
           {service.chosenMetrics && service.metrics && (
-            <div className="space-y-2 text-md text-primary font-semibold">
-              {/* Example synergy checks: "materials", "energyUsage", etc. */}
-              {service.chosenMetrics.includes('materials') && Array.isArray(service.metrics.materials) && (
-                <p>
-                  <strong>Materials:</strong>{' '}
-                  {service.metrics.materials
-                    .map((m: any) => `${m.name} (${m.percentageRecycled}% recycled, isRenewable=${m.isRenewable})`)
-                    .join(', ')}
-                </p>
+            <div className="grid md:grid-cols-2 gap-4 mt-4">
+              {/* Materials handled first so it appears in order */}
+              {service.chosenMetrics.includes('materials') &&
+                Array.isArray(service.metrics.materials) && (
+                  <MetricCard
+                    label="Materials"
+                    value={service.metrics.materials
+                      .map((m: any) =>
+                        `${m.name} (${m.percentageRecycled}% recycled, renewable = ${m.isRenewable})`
+                      )
+                      .join(', ')}
+                  />
               )}
-              {/* list every other metric, skipping peer‑rating fields */}
-                {service.chosenMetrics
-                  .filter((k) => !['materials', 'costEffectiveness', 'economicViability'].includes(k))
-                  .map((metricKey) => (
-                    <p key={metricKey}>
-                      <strong>{metricLabel(metricKey)}:</strong>{' '}
-                      {formatMetric(metricKey, service.metrics[metricKey])}
-                    </p>
-                ))}
+
+              {/* generic → every metric except the ones we special-case above/below */}
+              {service.chosenMetrics
+                .filter((k) =>
+                  !['materials', 'costEffectiveness', 'economicViability'].includes(k)
+                )
+                .map((metricKey) => (
+                  <MetricCard
+                    key={metricKey}
+                    label={metricLabel(metricKey)}
+                    value={
+                      typeof service.metrics[metricKey] === 'object'
+                        ? JSON.stringify(service.metrics[metricKey])
+                        : String(service.metrics[metricKey])
+                    }
+                    /* placeholder: later you can pass an extended description here */
+                  />
+              ) 
+          )}
               {/* etc. for any synergy keys. */}
               
               {/* ── Peer Cost‑Effectiveness ───────────────────── */}
@@ -474,12 +464,7 @@ const ServiceDetailsPage: React.FC = () => {
                       /* OWNER sees only the current average */
                       <div className="p-4 border rounded mt-4 bg-white">
                         <h3 className="font-bold mb-2">Cost‑Effectiveness (peer average)</h3>
-                        <p>
-                          {service.metrics.costEffectiveness.average.toFixed(1)}/10&nbsp;
-                          <span className="text-sm text-gray-500">
-                            (based on {service.metrics.costEffectiveness.count} ratings)
-                          </span>
-                        </p>
+                        <p>{fmtPeer(service.metrics.costEffectiveness as PeerMetric)}</p>
                       </div>
                     ) : (
                       /* NON‑owner can rate or view their rating */
@@ -531,12 +516,7 @@ const ServiceDetailsPage: React.FC = () => {
                     isOwner ? (
                       <div className="p-4 border rounded mt-4 bg-white">
                         <h3 className="font-bold mb-2">Economic Viability (peer average)</h3>
-                        <p>
-                          {service.metrics.economicViability.average.toFixed(1)}/10&nbsp;
-                          <span className="text-sm text-gray-500">
-                            (based on {service.metrics.economicViability.count} ratings)
-                          </span>
-                        </p>
+                        <p>{fmtPeer(service.metrics.costEffectiveness as PeerMetric)}</p>
                       </div>
                     ) : (
                       <div className="p-4 border rounded mt-4 bg-white">

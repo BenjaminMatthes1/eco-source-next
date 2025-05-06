@@ -50,7 +50,7 @@ const ProfileServices = ({ userId }: { userId: string }) => {
               onClick={() => router.push(`/services/${service._id}`)}
             >
               <h3 className="text-lg font-semibold mb-2">{service.name}</h3>
-              <p className="text-sm text-gray-600">{service.description}</p>
+              <p className="text-sm text-black font-redditLight">{service.description}</p>
             </div>
           ))}
         </div>

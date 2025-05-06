@@ -1,5 +1,5 @@
 import React from 'react';
-import Select, {SingleValue} from 'react-select';
+import Select, {SingleValue, StylesConfig, GroupBase} from 'react-select';
 import { METRIC_SELECT_OPTIONS } from '@/utils/metricOptions';
 import { dropdownListStyle } from '@/utils/selectStyles';
 
@@ -10,22 +10,28 @@ export type Option = { value: string; label: string };
     value: string;
     onChange: (val: string) => void;
     options?: Option[];
-    
+    className?: string;
+    styles?: StylesConfig<Option, false>;
   }
 
-  const MetricSelect: React.FC<Props> = ({ value, onChange, options }) => (
+  const MetricSelect: React.FC<Props> = ({
+    value,
+    onChange,
+    className,
+    styles,
+  }) => (
     <Select<Option, false>
-      isClearable
-      classNamePrefix="react-select"
-      placeholder="Select or type…"
-      styles={dropdownListStyle}
-      options={options ?? METRIC_SELECT_OPTIONS}                 
+      options={METRIC_SELECT_OPTIONS}
       value={
-        value
-          ? (options ?? METRIC_SELECT_OPTIONS).find((o) => o.value === value) ?? null
-          : null
+        value ? METRIC_SELECT_OPTIONS.find((o) => o.value === value) ?? null : null
       }
       onChange={(opt: SingleValue<Option>) => onChange(opt ? opt.value : '')}
+      isClearable
+      placeholder="Select or type…"
+      classNamePrefix="react-select"
+      /* ⬇︎ forward the new props */
+      className={className}
+      styles={styles}
     />
   );
   

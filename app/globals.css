@@ -258,7 +258,7 @@ body {
 
   /* ─── TERTIARY ─────────────────────────────────────── */
   .btn-tertiary {
-    @apply btn-base bg-tertiary text-white;
+    @apply btn-base bg-accent text-white;
   }
   .btn-tertiary:hover {
     @apply scale-105 shadow-md;

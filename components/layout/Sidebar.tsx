@@ -26,7 +26,7 @@ const Sidebar = () => {
             <li key={item.name}>
               <Link
                 href={item.href}
-                className={`block py-2.5 px-4 ${
+                className={`block py-2.5 px-4 font-redditLight ${
                   pathname === item.href ? 'text-secondary' : 'hover:bg-secondary'
                 }`}
               >

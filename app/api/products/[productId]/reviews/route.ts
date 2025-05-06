@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import mongoose, {Types} from 'mongoose';
 import connectToDatabase from '@/lib/mongooseClientPromise';
 import Product, { IProduct } from '@/models/Product';  // import your typed Product
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
+import { getToken } from 'next-auth/jwt';
+
 
 // If you want to recalc a product score after a review:
 // import { calculateERSProductScore } from '@/services/ersMetricsService';
@@ -53,62 +55,65 @@ export async function POST(
 ) {
   await connectToDatabase();
 
-  // Check authentication
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  /* 1. who is the caller?  */
+  const token = await getToken({ req: request });
+  if (!token) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
+  const userId = token.sub!;                 // logged-in user id (string)
 
-  try {
-    const { productId } = params;
-    // We expect { rating, comment } in the body
-    const { rating, comment } = await request.json();
-
-    if (!rating || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { message: 'Rating must be between 1 and 5' },
-        { status: 400 }
-      );
-    }
-    if (!comment) {
-      return NextResponse.json(
-        { message: 'Comment is required' },
-        { status: 400 }
-      );
-    }
-
-    /**
-     * Fetch the product doc as an IProduct, not lean,
-     * so we can modify (push reviews) and save.
-     */
-    const productDoc = await Product.findById<IProduct>(productId);
-    if (!productDoc) {
-      return NextResponse.json({ message: 'Product not found' }, { status: 404 });
-    }
-
-    // Add the new review
-    productDoc.reviews.push({
-      userId: new mongoose.Types.ObjectId(session.user.id),
-      rating,
-      comment,
-      createdAt: new Date(),
-    });
-
-    // Optionally recalc a product ERS score from reviews or other logic:
-    // const newScore = calculateERSProductScore({
-    //   // gather product fields, incorporate average rating if needed
-    // });
-    // productDoc.ersScore = newScore;
-
-    // Save
-    await productDoc.save();
-
+  /* 2. validate body */
+  const { rating, comment } = await request.json();
+  if (!rating || rating < 1 || rating > 5) {
     return NextResponse.json(
-      { message: 'Review added successfully' },
-      { status: 201 }
+      { message: 'Rating must be between 1 and 5.' },
+      { status: 400 }
     );
-  } catch (error) {
-    console.error('Error adding review:', error);
-    return NextResponse.json({ message: 'Error adding review' }, { status: 500 });
   }
+  if (!comment?.trim()) {
+    return NextResponse.json(
+      { message: 'Comment is required.' },
+      { status: 400 }
+    );
+  }
+
+  /* 3. fetch the product doc (NOT lean) */
+  const productDoc = await Product.findById<IProduct>(params.productId);
+  if (!productDoc) {
+    return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  }
+
+  /* 4-a. block the owner */
+  if (productDoc.userId.toString() === userId) {
+    return NextResponse.json(
+      { message: 'You cannot review your own product.' },
+      { status: 403 }
+    );
+  }
+
+  /* 4-b. block duplicate reviews */
+  const duplicate = productDoc.reviews.some(
+    (r) => r.userId.toString() === userId
+  );
+  if (duplicate) {
+    return NextResponse.json(
+      { message: 'You have already reviewed this product.' },
+      { status: 409 }
+    );
+  }
+
+  /* 5. push the new review & save */
+  productDoc.reviews.push({
+    userId: new Types.ObjectId(userId),
+    rating,
+    comment,
+    createdAt: new Date(),
+  });
+
+  await productDoc.save();
+
+  return NextResponse.json(
+    { message: 'Review added successfully' },
+    { status: 201 }
+  );
 }
