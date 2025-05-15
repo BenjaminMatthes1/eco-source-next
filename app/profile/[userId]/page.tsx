@@ -9,6 +9,7 @@ import Interests from '@/components/profile/Interests';
 import ProfileProducts from '@/components/profile/ProfileProducts';
 import ProfileServices from '@/components/profile/ProfileServices';
 import ProfileForumPosts from '@/components/profile/ProfileForumPosts';
+import { useSession } from 'next-auth/react';
 
 interface IUserERSMetrics {
   economicImpactRating: number;       // 0–10
@@ -35,11 +36,14 @@ interface UserProfile {
   ersMetrics?: IUserERSMetrics;
 }
 
+
 const UserProfilePage = () => {
-  const params = useParams();
-  const userId = params.userId as string;
+  const { userId } = useParams() as { userId?: string };
+  if (!userId) return <p className="p-6">Invalid user id</p>;
   const [user, setUser] = useState<UserProfile | null>(null);
   const router = useRouter();
+  const { data: session } = useSession();
+  
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -61,6 +65,24 @@ const UserProfilePage = () => {
     return <p className="p-6">Loading profile...</p>;
   }
 
+  const handleMessageClick = async () => {
+    if (!session?.user?.id) {
+      router.push('/login');
+      return;
+    }
+    try {
+      const res   = await fetch('/api/messages/threads');
+      const json  = await res.json();
+      const exists = json.threads?.some(
+        (u: { _id: string }) => u._id === user._id
+      );
+      // Regardless of exists, navigate to the same URL; the page loads msgs (0 or many)
+      router.push(`/messages/${user._id}`);
+    } catch {
+      router.push(`/messages/${user._id}`); // network error fallback
+    }
+  };
+
   return (
     <div className="flex justify-center p-6 bg-primary">
       <div className="w-full bg-white rounded-lg shadow-lg p-8">
@@ -72,6 +94,15 @@ const UserProfilePage = () => {
           companyName={user.companyName}
           website={user.website}
         />
+
+      {/* ——— Message button ——— */}
+      {session?.user?.id && session.user.id !== user._id && (
+        <div className="mt-4 flex justify-end">
+          <button onClick={handleMessageClick} className="btn btn-primary">
+            Message&nbsp;{user.name || 'User'}
+          </button>
+        </div>
+      )}
 
         {/* Display the NEW ERS metrics */}
         <ERSMetrics metrics={user.ersMetrics} />

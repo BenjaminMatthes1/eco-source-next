@@ -5,6 +5,7 @@ import Post from '@/models/Post';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import mongoose from 'mongoose';
+import Comment  from '@/models/Comment';
 
 export async function POST(request: NextRequest) {
   await connectToDatabase();
@@ -69,7 +70,17 @@ export async function GET(request: NextRequest) {
         .sort(sortOptions)
         .skip((page - 1) * limit)
         .limit(limit)
-        .populate('author', 'name');
+        .populate('author', 'name').lean();
+
+        // include comment counts
+        const postIds = posts.map(p => p._id);
+        const counts  = await Comment.aggregate([
+          { $match: { post: { $in: postIds } } },
+          { $group: { _id: '$post', comments: { $sum: 1 } } },
+        ]);
+        const countMap = Object.fromEntries(counts.map(c => [c._id.toString(), c.comments]));
+
+        posts.forEach((p: any) => (p.commentCount = countMap[p._id.toString()] || 0));
   
       const totalPosts = await Post.countDocuments(query);
   

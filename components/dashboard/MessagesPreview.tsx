@@ -1,5 +1,7 @@
 // components/dashboard/MessagesPreview.tsx
 import React, { useEffect, useState } from 'react';
+import { getSocket } from '@/lib/socketClient';
+import { useRouter } from 'next/navigation';
 
 interface MessagesPreviewProps {
   userId: string | undefined;
@@ -17,26 +19,33 @@ const MessagesPreview: React.FC<MessagesPreviewProps> = ({ userId }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const router = useRouter();
   
-    useEffect(() => {
-      if (userId) {
-        fetch(`/api/users/${userId}/messages`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.error) {
-              setError(data.error);
-            } else {
-              setMessages(data);
-            }
-            setLoading(false);
-          })
-          .catch((error) => {
-            console.error('Error fetching messages:', error);
-            setError('Failed to load messages.');
-            setLoading(false);
-          });
-      }
-    }, [userId]);
+/* ----- helper so we can call it from socket too ----- */
+const fetchThreads = () => {
+  if (!userId) return;
+    fetch(`/api/users/${userId}/messages`)
+  .then((res) => res.json())
+  .then((data) => {
+    if (data.error) setError(data.error);
+    else            setMessages(data);
+    setLoading(false);
+  })
+    .catch((err) => {
+      console.error('Error fetching messages:', err);
+      setError('Failed to load messages.');
+      setLoading(false);
+    });
+  };
+  
+  /* initial load + socket subscription */
+  useEffect(() => {
+    if (!userId) return;
+    fetchThreads();                 // first fetch
+    const socket = getSocket(userId);        // open socket once
+    socket.on('message:new', fetchThreads);   // refresh on any new msg
+   return () => { socket.off('message:new', fetchThreads); };
+   }, [userId]);
   
     if (loading) {
       return (
@@ -62,7 +71,11 @@ const MessagesPreview: React.FC<MessagesPreviewProps> = ({ userId }) => {
         {messages.length > 0 ? (
           <ul className="text-lg font-redditLight">
             {messages.map((message) => (
-              <li key={message._id} className="mb-2">
+              <li
+                key={message._id}
+                onClick={() => router.push(`/messages/${message._id}`)}
+                className="mb-2 p-2 rounded cursor-pointer hover:bg-neutral-200 transition"
+              >
                 <strong>{message.senderName}:</strong> {message.preview}
                 <br />
                 <span className="text-sm text-gray-600">

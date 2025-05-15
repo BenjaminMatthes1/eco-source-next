@@ -8,6 +8,7 @@ export interface IComment extends Document {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+  parentComment?: mongoose.Types.ObjectId;
 }
 
 const CommentSchema: Schema<IComment> = new Schema(
@@ -15,6 +16,7 @@ const CommentSchema: Schema<IComment> = new Schema(
     post: { type: Schema.Types.ObjectId, ref: 'Post', required: true },
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, required: true },
+    parentComment: { type: Schema.Types.ObjectId, ref: 'Comment' },
   },
   {
     timestamps: true,

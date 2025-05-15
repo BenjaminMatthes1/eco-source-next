@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useSession, signOut } from 'next-auth/react';
+import NotifBell     from '@/components/layout/NotifBell';
+import ThemeSwitch   from '@/components/ThemeSwitch';
 
 const NavBar: React.FC = () => {
   const { data: session, status } = useSession();
@@ -59,6 +61,9 @@ const NavBar: React.FC = () => {
           </Link>
         </div>
         <div className="flex-none gap-2">
+
+          {/* Theme toggle */}
+            <ThemeSwitch />
           <Link href="/blog" className="btn btn-ghost">
             Blog
           </Link>
@@ -75,6 +80,8 @@ const NavBar: React.FC = () => {
               <button onClick={() => signOut()} className="btn btn-ghost">
                 Sign Out
               </button>
+              {/* Notification bell */}
+              <NotifBell userId={session.user.id} />
             </>
           ) : (
             <>

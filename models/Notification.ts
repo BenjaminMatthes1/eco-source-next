@@ -6,6 +6,7 @@ export interface INotification extends Document {
   message: string;
   read: boolean;
   timestamp: Date;
+  link: string; 
 }
 
 const NotificationSchema = new Schema<INotification>({
@@ -13,6 +14,7 @@ const NotificationSchema = new Schema<INotification>({
   message: { type: String, required: true },
   read: { type: Boolean, default: false },
   timestamp: { type: Date, default: Date.now },
+  link: { type: String, required: true },
 });
 
 export default mongoose.models.Notification ||

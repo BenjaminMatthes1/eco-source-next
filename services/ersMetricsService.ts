@@ -335,6 +335,27 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
         }
         break;
 
+        case 'uploadedDocuments': {
+          /* Products & Services store their certs here */
+          if (!Array.isArray(rawVal)) {
+            totalWeight++;                    // field chosen but empty → 0 score
+            break;
+          }
+        
+          const verified = rawVal.filter(d => d.verified).length;
+          const pending  = rawVal.filter(
+            d => !d.verified && !d.rejectionReason
+          ).length;
+        
+          /* pending worth half, verified full */
+          const rawScore = verified + pending * 0.5;
+        
+          /* full weight once combined‑score ≥ 5 */
+          totalScore  += Math.min(rawScore / 5, 1);   // 0 … 1
+          totalWeight++;
+          break;
+        }
+
       default:
         // if there's some other synergy key, you can handle it here
         break;
@@ -415,12 +436,12 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
       
       // or user docs => treat similarly
       case 'uploadedDocuments': {
-        if (Array.isArray(rawVal) && rawVal.length > 0) {
-          // e.g. +0.2 per doc, up to 1
-          const subScore = Math.min(rawVal.length * 0.2, 1);
-          totalScore += subScore;
-          totalWeight++;
-        }
+        const docs      = Array.isArray(rawVal) ? rawVal : [];
+        const verified  = docs.filter(d => d.verified).length;
+        const pending   = docs.filter(d => !d.verified && !d.rejectionReason).length;
+        const rawScore  = verified + pending * 0.5;   // pending worth half
+        totalScore += Math.min(rawScore / 5, 1);      // weight caps at 1
+        totalWeight++;
         break;
       }
 

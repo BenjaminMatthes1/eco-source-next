@@ -17,7 +17,9 @@ export default async function connectToDatabase() {
   if (!global._mongoosePromise) {
     global._mongoosePromise = mongoose.connect(MONGODB_URI, {
       // any mongoose options you need
-      bufferCommands: false,
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 3000, // ← abort after 3 s if cluster not reachable
+        socketTimeoutMS: 3000,          // ← network‑read timeout
     });
     // optional: log once
     global._mongoosePromise.then(() => console.log('✅  Mongoose connected'));

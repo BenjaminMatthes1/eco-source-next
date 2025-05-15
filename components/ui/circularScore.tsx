@@ -19,16 +19,30 @@ const scoreToHue = (val: number) => {
 /** Re-usable circular progress badge */
 const CircularScore: React.FC<CircularScoreProps> = ({
   score,
-  size = 80,
+  size = 100,
   stroke = 10,
 }) => {
-  const radius   = (size - stroke) / 2;      // keep stroke inside viewBox
-  const circ     = 2 * Math.PI * radius;
-  const { offset, color } = useMemo(() => {
-    const off = circ - (score / 100) * circ;
-    const hue = scoreToHue(score);
-    return { offset: off, color: `hsl(${hue},100%,50%)` };
-  }, [score, circ]);
+  const radius = (size - stroke) / 2;
+  const circ   = 2 * Math.PI * radius;
+
+  /* animate from 0 ➜ score */
+  const [progress, setProgress] = React.useState(0);
+  React.useEffect(() => {
+    let start: number | null = null;
+    const duration = 2000; // ms
+
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const pct = Math.min((ts - start) / duration, 1);
+      setProgress(pct * score);
+      if (pct < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [score]);
+
+  const offset = circ - (progress / 100) * circ;
+  const hue    = (progress * 120) / 100;
+  const color  = `hsl(${hue},100%,45%)`;
 
   return (
     <svg
@@ -39,17 +53,16 @@ const CircularScore: React.FC<CircularScoreProps> = ({
       role="img"
       aria-label={`ERS score ${score} percent`}
     >
-      {/* background ring */}
+      {/* bg ring */}
       <circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
-        fill="white"
+        fill="none"
         stroke="#e5e7eb"
         strokeWidth={stroke}
       />
-
-      {/* progress ring */}
+      {/* animated ring */}
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -60,21 +73,20 @@ const CircularScore: React.FC<CircularScoreProps> = ({
         strokeDasharray={circ}
         strokeDashoffset={offset}
         strokeLinecap="round"
-        style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+        style={{ transition: 'stroke .5s linear' }}
       />
-
-      {/* score text */}
+      {/* value */}
       <text
         x="50%"
         y="50%"
         dy=".3em"
         textAnchor="middle"
-        fontSize={size * 0.32}
-        fontFamily="redditLight, sans-serif"
+        fontSize={size * 0.25}
+        fontFamily="HelveticaNowtext-Thin, sans-serif"
         fontWeight={700}
         fill={color}
       >
-        {score}%
+        {Math.round(progress)}%
       </text>
     </svg>
   );

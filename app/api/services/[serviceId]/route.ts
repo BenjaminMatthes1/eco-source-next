@@ -19,10 +19,7 @@ export async function GET(
   try {
     const { serviceId } = await params;
     const service = await Service.findById(serviceId)
-    .populate({
-      path: 'userId',
-      select: 'name profilePictureUrl', // or select other fields
-    })
+    .populate('reviews.userId', 'name profilePictureUrl');
     
 
     if (!service) {
@@ -44,7 +41,7 @@ export async function PUT(
   { params }: { params: { serviceId: string } }
 ) {
   await connectToDatabase();
-  const { serviceId } = params;
+  const { serviceId } = await params;
 
   try {
     const body = await request.json();

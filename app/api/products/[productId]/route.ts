@@ -17,11 +17,8 @@ export async function GET(
   try {
     const { productId } = await params;
     const product = await Product.findById(productId)
-      .populate({
-        path: 'userId',
-        select: 'name profilePictureUrl',
-      })
-      .lean();
+    .populate('reviews.userId', 'name profilePictureUrl');
+      
 
     if (!product) {
       return NextResponse.json({ message: 'Product not found.' }, { status: 404 });
@@ -49,7 +46,7 @@ export async function PUT(
 ) {
   await connectToDatabase();
 
-  const { productId } = params;
+  const { productId } = await params;
 
   try {
     const body = await request.json();

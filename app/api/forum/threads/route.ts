@@ -10,6 +10,10 @@ import { logActivity } from '@/utils/activityLogger';
 export async function GET(request: NextRequest) {
   await connectToDatabase();
   const { searchParams } = new URL(request.url);
+  const keyword = searchParams.get('q');          // NEW
+  const author  = searchParams.get('author');     // NEW
+  const sortBy  = searchParams.get('sort') || 'createdAt'; // views | replies
+  const order   = searchParams.get('order') === 'asc' ? 1 : -1;
   const pageParam = searchParams.get('page');
   const limitParam = searchParams.get('limit');
   const tag = searchParams.get('tag');
@@ -19,11 +23,14 @@ export async function GET(request: NextRequest) {
 
   try {
     // Create query filter based on tag if provided
-    const query: { tags?: string } = tag ? { tags: tag } : {};
+    const query: any = {};
+      if (tag)     query.tags   = tag;
+      if (author)  query.author = author;
+      if (keyword) query.$text  = { $search: keyword };
     
     // Fetch threads with pagination
     const threads = await Thread.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ [sortBy]: order })
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();

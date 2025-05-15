@@ -40,7 +40,7 @@ const DashboardProducts = ({ userId }: { userId: string }) => {
             onClick={() => router.push(`/products/${product._id}`)}
           >
             <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
-            <p className="text-sm text-gray-600">{product.description}</p>
+            <p className="text-sm text-gray-600 font-redditLight">{product.description}</p>
           </div>
         ))}
         <button

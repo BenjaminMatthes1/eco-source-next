@@ -20,7 +20,7 @@ export async function GET(
   await connectToDatabase();
 
   try {
-    const { productId } = params;
+    const { productId } = await params;
     /**
      * Use a typed call if you want strongly typed result:
      * findById<IProduct>(productId)
@@ -64,12 +64,25 @@ export async function POST(
 
   /* 2. validate body */
   const { rating, comment } = await request.json();
-  if (!rating || rating < 1 || rating > 5) {
-    return NextResponse.json(
-      { message: 'Rating must be between 1 and 5.' },
+    const ratingNum = Number(rating);              // ← convert once
+
+    // accept 0.5 increments between 0.5 and 5
+    const validIncrement = Math.abs(ratingNum * 2 - Math.round(ratingNum * 2)) < 1e-6;
+
+    if (
+      Number.isNaN(ratingNum)                ||
+      ratingNum < 0.5 || ratingNum > 5       ||
+      !validIncrement                        // 0.5‑step guard
+    ) {
+        return NextResponse.json(
+      { message: 'Rating must be a 0.5‑step value between 0.5 and 5' },
       { status: 400 }
     );
   }
+  if (!comment?.trim()) {
+    return NextResponse.json({ message: 'Comment required' }, { status: 400 });
+  }
+    
   if (!comment?.trim()) {
     return NextResponse.json(
       { message: 'Comment is required.' },
@@ -112,8 +125,19 @@ export async function POST(
 
   await productDoc.save();
 
-  return NextResponse.json(
-    { message: 'Review added successfully' },
-    { status: 201 }
-  );
+  
+  const doc = await Product.findById(params.productId)
+  .select('reviews')
+  .populate('reviews.userId', 'name profilePictureUrl')
+  .lean();
+
+    if (!doc || Array.isArray(doc)) {
+      return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+    }
+
+    const { reviews } = doc;
+    const newReview   = reviews.at(-1);
+
+    return NextResponse.json({ review: newReview }, { status: 201 });
+  
 }

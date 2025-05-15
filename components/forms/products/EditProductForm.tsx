@@ -441,7 +441,8 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
 
       setDocFile(null);
       setDocCategory('');
-      (document.getElementById('productDocInput') as HTMLInputElement).value = '';
+      const el = document.getElementById('productDocInput') as HTMLInputElement | null;
+      if (el) el.value = '';
     } catch (err: any) {
       console.error('Doc upload error:', err);
       setUploadError(err.message);

@@ -16,10 +16,9 @@ import {
   FaExclamationTriangle,
   FaFileAlt
 } from 'react-icons/fa';
-import { metricLabel } from '@/utils/metricOptions';
 import mongoose from 'mongoose';
-import CircularScore from '@/components/profile/CircularScore';
-import MetricCard from '@/components/ui/metricCard';
+import ProductERSPanel from '@/components/forms/products/ProductERSPanel';
+import { StarsInput } from '@/components/ui/Stars';
 
 
 
@@ -39,6 +38,20 @@ function fmtPeer(metric: PeerMetric) {
   }
   return '—/10 (0)';                    // fallback when no ratings yet
 }
+
+const StarRating: React.FC<{ value: number }> = ({ value }) => {
+  const full = Math.floor(value);
+  const half = value - full >= 0.5;
+  return (
+    <div className="flex">
+      {Array.from({ length: 5 }).map((_, i) => {
+        if (i < full) return <span key={i}>★</span>;
+        if (i === full && half) return <span key={i}>☆{/* half icon */}</span>;
+        return <span key={i}>☆</span>;
+      })}
+    </div>
+  );
+};
 
 /* pretty-print any metric (same helper we used on services) */
 function formatMetric(key: string, val: any) {
@@ -82,7 +95,10 @@ function getScoreHue(score: number) {
        
 
 const ProductDetailsPage: React.FC = () => {
-  const { productId } = useParams();
+  const { productId } = useParams() as { productId?: string };
+  if (!productId) {
+      return <p className="p-6 text-red-500">Invalid product id.</p>;
+    }
   const { data: session } = useSession();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -291,11 +307,12 @@ const ProductDetailsPage: React.FC = () => {
     <div className="min-h-screen py-8 bg-gradient-to-br from-neutral via-neutral/90 to-accent/60 animate-in fade-in">
       {/* Container */}
       <section
-        className="grid grid-cols-[0.9fr_1fr] max-w-7xl mx-auto bg-white rounded shadow-lg relative p-6 animate-in fade-in gap-8"
+        className="grid grid-cols-[0.9fr_1fr] max-w-7xl mx-auto bg-white rounded shadow-lg p-6 gap-8
+              min-h-[580px] overflow-visible"
       >
         {/* Left Photo section */}
         <div className="relative">
-          <div className="absolute grid grid-rows-[auto_1fr] rounded shadow-md overflow-hidden inset-0">
+          <div className="grid grid-rows-[auto_1fr] rounded shadow-md overflow-hidden h-full">
             <div className="relative p-4 bg-gradient-to-br from-primary to-secondary">
               {/* Seller Info */}
               <div className="flex items-center gap-3">
@@ -405,189 +422,99 @@ const ProductDetailsPage: React.FC = () => {
               </Link>
             )}
           </div>
-
-          {/* ERS Score */}
-          {ersScore !== null && (
-            <div className="mb-4 flex items-center gap-4 bg-neutral p-2 justify-center rounded-md">
-              <CircularScore score={ersScore} />
-              <span className="text-secondary text-xl font-bold">
-                Product ERS Score
-              </span>
-            </div>
-          )}
-
-          {/* SYNERGY FIELDS */}
-            {product.chosenMetrics && product.metrics && (
-            <div className="grid md:grid-cols-2 gap-4 mt-4">
-              {/* Materials handled first so it appears in order */}
-              {product.chosenMetrics.includes('materials') &&
-                Array.isArray(product.metrics.materials) && (
-                  <MetricCard
-                    label="Materials"
-                    value={product.metrics.materials
-                      .map((m: any) =>
-                        `${m.name} (${m.percentageRecycled}% recycled, renewable = ${m.isRenewable})`
-                      )
-                      .join(', ')}
-                  />
-              )}
-
-              {/* generic → every metric except the ones we special-case above/below */}
-              {product.chosenMetrics
-                .filter((k) =>
-                  !['materials', 'costEffectiveness', 'economicViability'].includes(k)
-                )
-                .map((metricKey) => (
-                  <MetricCard
-                    key={metricKey}
-                    label={metricLabel(metricKey)}
-                    value={
-                      typeof product.metrics[metricKey] === 'object'
-                        ? JSON.stringify(product.metrics[metricKey])
-                        : String(product.metrics[metricKey])
-                    }
-                    /* placeholder: later you can pass an extended description here */
-                  />
-              ))}
-              
-
-              {/* ── Peer Cost-Effectiveness ───────────────────── */}
-              {product.chosenMetrics.includes('costEffectiveness') && (
-                isOwner ? (
-                  product.metrics.costEffectiveness &&
-                  typeof product.metrics.costEffectiveness === 'object' && (
-                    <div className="p-4 border rounded mt-4 bg-white">
-                      <h3 className="font-bold mb-2">Cost-Effectiveness (peer average)</h3>
-                      <p>{fmtPeer(product.metrics.costEffectiveness as PeerMetric)}</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="p-4 border rounded mt-4 bg-white">
-                    <h3 className="font-bold mb-2">Peer Cost-Effectiveness Rating (1–10)</h3>
-                    {myCostRating !== null && !showCostForm ? (
-                      <>
-                        <p>Your rating: {myCostRating}/10</p>
-                        {product.metrics.costEffectiveness &&
-                          typeof product.metrics.costEffectiveness === 'object' && (
-                            <p>
-                              Overall average: {product.metrics.costEffectiveness.average.toFixed(1)}/10
-                              (count: {product.metrics.costEffectiveness.count})
-                            </p>
-                        )}
-                        <button onClick={() => setShowCostForm(true)} className="btn btn-xs btn-accent mt-2">
-                          Change Rating
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <label htmlFor="costRating" className="block text-sm">Rate (1–10):</label>
-                        <input
-                          id="costRating"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={costRating}
-                          onChange={(e) => setCostRating(e.target.value)}
-                          className="border p-1 w-16 mr-2"
-                        />
-                        <button
-                          onClick={() => handlePeerRatingSubmit('costEffectiveness')}
-                          className="btn btn-sm btn-secondary"
-                        >
-                          Submit
-                        </button>
-                        {peerError && <p className="text-red-500">{peerError}</p>}
-                      </>
-                    )}
-                  </div>
-                )
-              )}
-
-              {/* ── Peer Economic Viability ───────────────────── */}
-              {product.chosenMetrics.includes('economicViability') && (
-                isOwner ? (
-                  product.metrics.economicViability &&
-                  typeof product.metrics.economicViability === 'object' && (
-                    <div className="p-4 border rounded mt-4 bg-white">
-                      <h3 className="font-bold mb-2">Economic Viability (peer average)</h3>
-                      <p>{fmtPeer(product.metrics.costEffectiveness as PeerMetric)}</p>
-                    </div>
-                  )
-                ) : (
-                  <div className="p-4 border rounded mt-4 bg-white">
-                    <h3 className="font-bold mb-2">Peer Economic Viability Rating (1–10)</h3>
-                    {myEconRating !== null && !showEconForm ? (
-                      <>
-                        <p>Your rating: {myEconRating}/10</p>
-                        {product.metrics.economicViability &&
-                          typeof product.metrics.economicViability === 'object' && (
-                            <p>
-                              Overall average: {product.metrics.economicViability.average.toFixed(1)}/10
-                              (count: {product.metrics.economicViability.count})
-                            </p>
-                        )}
-                        <button onClick={() => setShowEconForm(true)} className="btn btn-xs btn-accent mt-2">
-                          Change Rating
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <label htmlFor="econRating" className="block text-sm">Rate (1–10):</label>
-                        <input
-                          id="econRating"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={econRating}
-                          onChange={(e) => setEconRating(e.target.value)}
-                          className="border p-1 w-16 mr-2"
-                        />
-                        <button
-                          onClick={() => handlePeerRatingSubmit('economicViability')}
-                          className="btn btn-sm btn-secondary"
-                        >
-                          Submit
-                        </button>
-                        {peerError && <p className="text-red-500">{peerError}</p>}
-                      </>
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Documents & Reviews below */}
-      <div className="max-w-5xl mx-auto mt-6 px-4 animate-in fade-in">
-        {/* Documents Section */}
-        {/* (unchanged) */}
+      {/* === ERS metrics + Documents side‑by‑side === */}
+      <div className="max-w-7xl mx-auto mt-8 px-4 grid gap-8 md:grid-cols-3 items-center">
+        {/* ERS panel ⅔ */}
+        <div className="md:col-span-2 w-full">
+          <ProductERSPanel
+            productId={String(productId)}
+            isOwner={isOwner}
+            chosen={product.chosenMetrics}
+            metrics={product.metrics}
+            peerRatings={product.peerRatings}
+            userId={session?.user?.id}
+          />
+        </div>
+
+      {/* ----- right: Documents ----- */}
+      <div className="md:col-span-1">
+          <h2 className="text-2xl font-bold mb-4 text-primary">Documents</h2>
+          {product.uploadedDocuments && product.uploadedDocuments.length > 0 ? (
+            <ul className="space-y-2">
+              {product.uploadedDocuments.map((doc, idx) => {
+                let statusText = 'Pending';
+                let statusColor = 'text-yellow-700';
+                let isRejected  = false;
+
+                if (doc.verified) {
+                  statusText  = 'Verified';
+                  statusColor = 'text-green-700';
+                } else if (doc.rejectionReason) {
+                  statusText  = 'Rejected';
+                  statusColor = 'text-red-700';
+                  isRejected  = true;
+                }
+
+                return (
+                  <li
+                    key={idx}
+                    className="border rounded p-2 flex items-center gap-3 bg-white"
+                  >
+                    {getDocumentIcon(doc.category)}
+                    <div className="flex-1">
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold hover:underline"
+                      >
+                        {doc.name}
+                      </a>
+                      <p className={`${statusColor} text-sm`}>
+                        <strong>Status:</strong> {statusText}
+                      </p>
+                      {isRejected && (
+                        <p className="text-sm text-red-700">
+                          <strong>Rejection Reason:</strong> {doc.rejectionReason}
+                        </p>
+                      )}
+                      {doc.category && (
+                        <p className="text-sm text-gray-700">
+                          <strong>Category:</strong> {doc.category}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-700">No documents uploaded yet.</p>
+          )}
+        </div>
+      </div>
 
         {/* Reviews */}
-        <div className="mt-10">
+        <div className="ml-10 mt-10">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">Reviews</h2>
           {!isOwner && !alreadyReviewed && (
-          <form onSubmit={handleReviewSubmit} className="space-y-4 max-w-md">
+           <form onSubmit={handleReviewSubmit} className="space-y-4 max-w-md bg-primary/10 p-4 rounded-lg">
             <div>
-              <label htmlFor="rating" className="block text-sm font-medium">
-                Rating (1-5)
+              <label className="block text-sm font-redditLight mb-1">
+                Rating
               </label>
-              <input
-                type="number"
-                id="rating"
-                value={reviewData.rating}
-                onChange={(e) =>
-                  setReviewData({ ...reviewData, rating: e.target.value })
+              <StarsInput
+                value={parseFloat(reviewData.rating || '0')}
+                onChange={(val) =>
+                  setReviewData({ ...reviewData, rating: String(val) })
                 }
-                min="1"
-                max="5"
-                className="w-full border p-2"
-                required
               />
             </div>
             <div>
-              <label htmlFor="comment" className="block text-sm font-medium">
+              <label htmlFor="comment" className="block text-sm font-redditLight">
                 Comment
               </label>
               <textarea
@@ -607,19 +534,39 @@ const ProductDetailsPage: React.FC = () => {
           )}
           {error && <p className="text-red-500 mt-2">{error}</p>}
 
-          <div className="space-y-4 mt-6">
-            {reviews.map((review) => (
-              <div key={review._id} className="border p-4 rounded bg-gray-50">
-                <p>
-                  <strong>Rating:</strong> {review.rating} / 5
+          {/*  responsive grid: 1 col → 2 cols (sm) → 3 cols (lg) */}
+          <div className="grid gap-4 mt-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {reviews.map((r) => (
+              <div
+                key={r._id}
+                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition"
+              >
+                {/* reviewer avatar + name */}
+                <div className="flex items-center gap-2 mb-2">
+                  <img
+                    src={r.userId.profilePictureUrl ?? '/images/default-profile.jpg'}
+                    alt={r.userId.name ?? 'Reviewer'}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                  <Link
+                    href={`/profile/${r.userId._id}`}
+                    className="font-semibold hover:underline"
+                  >
+                    {r.userId.name ?? 'Anonymous'}
+                  </Link>
+                </div>
+
+                {/* star badge */}
+                <StarRating value={r.rating} />
+
+                {/* comment */}
+                <p className="text-sm whitespace-pre-line font-redditLight mt-2">
+                  {r.comment}
                 </p>
-                <p>{review.comment}</p>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
+          </div>
       {/* PHOTO MODAL */}
       {modalOpen && product.photos && (
         <div

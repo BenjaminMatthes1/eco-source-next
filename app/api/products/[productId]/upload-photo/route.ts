@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: { productId: 
     }
 
     // 1) Find product
-    const { productId } = params;
+    const { productId } = await params;
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return NextResponse.json({ error: 'Invalid productId' }, { status: 400 });
     }

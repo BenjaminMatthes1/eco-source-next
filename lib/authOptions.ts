@@ -48,22 +48,28 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      // First login: user comes from CredentialsProvider → cache in JWT
       if (user) {
-        token.id = user.id || '';
-        token.role = user.role || '';
-      }else {
-        // each request, re-fetch from DB
-        const dbUser = await User.findById(token.id).lean();
-        token.role = dbUser?.role || '';
+        token.id   = user.id;
+        token.role = (user as any).role ?? 'user';
+        return token;               // ⬅ done – no DB call
       }
+    
+      // Subsequent requests: skip DB if role already cached or no id yet
+      if (!token.role && token.id) {
+        const dbUser = await User.findById(token.id).lean();
+        (token as any).role = dbUser?.role ?? 'user';
+      }
+    
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = (token.id as string) || '';
-        session.user.role = (token.role as string) || 'user';
-      }
-      return session;
+      const t = token as { id?: string; role?: string };
+      if (session.user) {
+          session.user.id   = t.id   ?? '';   // default empty string satisfies TS
+          session.user.role = t.role ?? 'user';
+        }
+        return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

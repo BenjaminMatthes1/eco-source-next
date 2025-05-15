@@ -6,12 +6,11 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import mongoose from 'mongoose';
-import CircularScore from '@/components/ui/circularScore';
-
 import { Service } from '@/types/types';
 import { calculateERSItemScore } from '@/services/ersMetricsService'; 
-import { metricLabel } from '@/utils/metricOptions';
-import MetricCard from '@/components/ui/metricCard';
+import ServiceERSPanel from '@/components/forms/services/ServiceERSPanel';
+import { StarsInput } from '@/components/ui/Stars';
+
 // or your synergy approach if you prefer "calculateERSServiceScore"
 
 /** Icon for doc category */
@@ -24,6 +23,20 @@ import {
   FaExclamationTriangle,
   FaFileAlt
 } from 'react-icons/fa';
+
+const StarRating: React.FC<{ value: number }> = ({ value }) => {
+  const full = Math.floor(value);
+  const half = value - full >= 0.5;
+  return (
+    <div className="flex">
+      {Array.from({ length: 5 }).map((_, i) => {
+        if (i < full) return <span key={i}>★</span>;
+        if (i === full && half) return <span key={i}>☆{/* half icon */}</span>;
+        return <span key={i}>☆</span>;
+      })}
+    </div>
+  );
+};
 
 type PeerMetric =
   | { average: number; count: number }   // what you expect after ratings
@@ -87,7 +100,9 @@ function getDocumentIcon(category: string | undefined) {
 }
 
 const ServiceDetailsPage: React.FC = () => {
-  const { serviceId } = useParams();
+  const { serviceId } = useParams() as { serviceId?: string };
+  if (!serviceId) {
+    return <p className="m-6 text-red-500">Invalid service id.</p>; }
   const { data: session } = useSession();
 
   // The service object from DB
@@ -276,6 +291,7 @@ const ServiceDetailsPage: React.FC = () => {
   const actualUserId =
     typeof service.userId === 'object' ? service.userId._id : service.userId;
   const isOwner = session?.user?.id === actualUserId;
+  const alreadyReviewed = reviews.some(r => r.userId === session?.user?.id);
 
   // user display
   const userName =
@@ -297,11 +313,12 @@ const ServiceDetailsPage: React.FC = () => {
     <div className="min-h-screen py-8 bg-gradient-to-br from-neutral via-neutral/90 to-accent/60 animate-in fade-in">
       {/* 2-col container */}
       <section
-        className="grid grid-cols-[0.9fr_1fr] max-w-7xl mx-auto bg-white rounded shadow-lg relative p-6 gap-8"
+        className="grid grid-cols-[0.9fr_1fr] max-w-7xl mx-auto bg-white rounded shadow-lg p-6 gap-8
+              min-h-[580px] overflow-visible"
       >
         {/* Left Photo section */}
         <div className="relative">
-          <div className="absolute grid grid-rows-[auto_1fr] rounded shadow-md overflow-hidden inset-0">
+        <div className="grid grid-rows-[auto_1fr] rounded shadow-md overflow-hidden h-full">
             <div className="relative p-4 bg-gradient-to-br from-primary to-secondary">
               {/* Seller info */}
               <div className="flex items-center gap-3">
@@ -411,179 +428,40 @@ const ServiceDetailsPage: React.FC = () => {
               </Link>
             )}
           </div>
-
-          {/* synergy-based ERS score */}
-          {ersScore !== null && (
-            <div className="mb-4 flex items-center gap-4 bg-neutral p-2 justify-center rounded-md">
-              <CircularScore score={ersScore} />
-              <span className="text-secondary text-xl font-bold">
-                Service ERS Score
-              </span>
-            </div>
-          )}
-
-          {/* synergy fields snippet */}
-          {service.chosenMetrics && service.metrics && (
-            <div className="grid md:grid-cols-2 gap-4 mt-4">
-              {/* Materials handled first so it appears in order */}
-              {service.chosenMetrics.includes('materials') &&
-                Array.isArray(service.metrics.materials) && (
-                  <MetricCard
-                    label="Materials"
-                    value={service.metrics.materials
-                      .map((m: any) =>
-                        `${m.name} (${m.percentageRecycled}% recycled, renewable = ${m.isRenewable})`
-                      )
-                      .join(', ')}
-                  />
-              )}
-
-              {/* generic → every metric except the ones we special-case above/below */}
-              {service.chosenMetrics
-                .filter((k) =>
-                  !['materials', 'costEffectiveness', 'economicViability'].includes(k)
-                )
-                .map((metricKey) => (
-                  <MetricCard
-                    key={metricKey}
-                    label={metricLabel(metricKey)}
-                    value={
-                      typeof service.metrics[metricKey] === 'object'
-                        ? JSON.stringify(service.metrics[metricKey])
-                        : String(service.metrics[metricKey])
-                    }
-                    /* placeholder: later you can pass an extended description here */
-                  />
-              ) 
-          )}
-              {/* etc. for any synergy keys. */}
-              
-              {/* ── Peer Cost‑Effectiveness ───────────────────── */}
-                {service.chosenMetrics.includes('costEffectiveness') && (
-                    isOwner ? (
-                      /* OWNER sees only the current average */
-                      <div className="p-4 border rounded mt-4 bg-white">
-                        <h3 className="font-bold mb-2">Cost‑Effectiveness (peer average)</h3>
-                        <p>{fmtPeer(service.metrics.costEffectiveness as PeerMetric)}</p>
-                      </div>
-                    ) : (
-                      /* NON‑owner can rate or view their rating */
-                      <div className="p-4 border rounded mt-4 bg-white">
-                        <h3 className="font-bold mb-2">Peer Cost‑Effectiveness Rating (1–10)</h3>
-
-                        {myCostRating !== null && !showCostForm ? (
-                          <>
-                            <p>Your rating: {myCostRating}/10</p>
-                            <p>
-                              Overall average: {service.metrics.costEffectiveness.average.toFixed(1)}/10&nbsp;
-                              (count: {service.metrics.costEffectiveness.count})
-                            </p>
-                            <button
-                              onClick={() => setShowCostForm(true)}
-                              className="btn btn-xs btn-accent mt-2"
-                            >
-                              Change Rating
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <label htmlFor="costRating" className="block text-sm">Rate (1–10):</label>
-                            <input
-                              id="costRating"
-                              type="number"
-                              min={1}
-                              max={10}
-                              value={costRating}
-                              onChange={(e) => setCostRating(e.target.value)}
-                              className="border p-1 w-16 mr-2"
-                            />
-                            <button
-                              onClick={() => handlePeerRatingSubmit('costEffectiveness')}
-                              className="btn btn-sm btn-secondary"
-                            >
-                              Submit
-                            </button>
-                            {peerError && <p className="text-red-500">{peerError}</p>}
-                          </>
-                        )}
-                      </div>
-                    )
-                )}
-
-
-              {/* ── Peer Economic Viability ───────────────────── */}
-                {service.chosenMetrics.includes('economicViability') && (
-                    isOwner ? (
-                      <div className="p-4 border rounded mt-4 bg-white">
-                        <h3 className="font-bold mb-2">Economic Viability (peer average)</h3>
-                        <p>{fmtPeer(service.metrics.costEffectiveness as PeerMetric)}</p>
-                      </div>
-                    ) : (
-                      <div className="p-4 border rounded mt-4 bg-white">
-                        <h3 className="font-bold mb-2">Peer Economic Viability Rating (1–10)</h3>
-
-                        {myEconRating !== null && !showEconForm ? (
-                          <>
-                            <p>Your rating: {myEconRating}/10</p>
-                            <p>
-                              Overall average: {service.metrics.economicViability.average.toFixed(1)}/10&nbsp;
-                              (count: {service.metrics.economicViability.count})
-                            </p>
-                            <button
-                              onClick={() => setShowEconForm(true)}
-                              className="btn btn-xs btn-accent mt-2"
-                            >
-                              Change Rating
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <label htmlFor="econRating" className="block text-sm">Rate (1–10):</label>
-                            <input
-                              id="econRating"
-                              type="number"
-                              min={1}
-                              max={10}
-                              value={econRating}
-                              onChange={(e) => setEconRating(e.target.value)}
-                              className="border p-1 w-16 mr-2"
-                            />
-                            <button
-                              onClick={() => handlePeerRatingSubmit('economicViability')}
-                              className="btn btn-sm btn-secondary"
-                            >
-                              Submit
-                            </button>
-                            {peerError && <p className="text-red-500">{peerError}</p>}
-                          </>
-                        )}
-                      </div>
-                    )
-                )}
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Documents & Reviews below */}
-      <div className="max-w-5xl mx-auto mt-6 px-4 animate-in fade-in">
-        {/* Documents */}
-        <div className="mt-8">
+      {/* === ERS metrics + Documents side‑by‑side === */}
+      <div className="max-w-7xl mx-auto mt-8 px-4 grid gap-8 md:grid-cols-3 items-center">
+        {/* ----- left: ERS panel ----- */}
+        <div className="md:col-span-2">
+          <ServiceERSPanel
+            serviceId={String(serviceId)}
+            isOwner={isOwner}
+            chosen={service.chosenMetrics}
+            metrics={service.metrics}
+            peerRatings={service.peerRatings}
+            userId={session?.user?.id}
+          />
+        </div>
+
+        {/* ----- right: Documents ----- */}
+        <div className="md:col-span-1">
           <h2 className="text-2xl font-bold mb-4 text-primary">Documents</h2>
           {service.uploadedDocuments && service.uploadedDocuments.length > 0 ? (
             <ul className="space-y-2">
               {service.uploadedDocuments.map((doc, idx) => {
                 let statusText = 'Pending';
                 let statusColor = 'text-yellow-700';
-                let isRejected = false;
+                let isRejected  = false;
 
                 if (doc.verified) {
-                  statusText = 'Verified';
+                  statusText  = 'Verified';
                   statusColor = 'text-green-700';
                 } else if (doc.rejectionReason) {
-                  statusText = 'Rejected';
+                  statusText  = 'Rejected';
                   statusColor = 'text-red-700';
-                  isRejected = true;
+                  isRejected  = true;
                 }
 
                 return (
@@ -623,33 +501,26 @@ const ServiceDetailsPage: React.FC = () => {
             <p className="text-sm text-gray-700">No documents uploaded yet.</p>
           )}
         </div>
+      </div>
 
         {/* Reviews */}
-        <div className="mt-10">
+        <div className="ml-10 mt-10">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">Reviews</h2>
-          <form
-            onSubmit={handleReviewSubmit}
-            className="space-y-4 max-w-md"
-          >
+          {!isOwner && !alreadyReviewed && (
+           <form onSubmit={handleReviewSubmit} className="space-y-4 max-w-md bg-primary/10 p-4 rounded-lg">
             <div>
-              <label htmlFor="rating" className="block text-sm font-medium">
-                Rating (1-5)
+              <label className="block text-sm font-redditLight mb-1">
+                Rating
               </label>
-              <input
-                type="number"
-                id="rating"
-                value={reviewData.rating}
-                onChange={(e) =>
-                  setReviewData({ ...reviewData, rating: e.target.value })
+              <StarsInput
+                value={parseFloat(reviewData.rating || '0')}
+                onChange={(val) =>
+                  setReviewData({ ...reviewData, rating: String(val) })
                 }
-                min="1"
-                max="5"
-                className="w-full border p-2"
-                required
               />
             </div>
             <div>
-              <label htmlFor="comment" className="block text-sm font-medium">
+              <label htmlFor="comment" className="block text-sm font-redditLight">
                 Comment
               </label>
               <textarea
@@ -666,20 +537,43 @@ const ServiceDetailsPage: React.FC = () => {
               Submit Review
             </button>
           </form>
+          )}
           {error && <p className="text-red-500 mt-2">{error}</p>}
 
-          <div className="space-y-4 mt-6">
-            {reviews.map((review) => (
-              <div key={review._id} className="border p-4 rounded bg-gray-50">
-                <p>
-                  <strong>Rating:</strong> {review.rating} / 5
+          {/*  responsive grid: 1 col → 2 cols (sm) → 3 cols (lg) */}
+          <div className="grid gap-4 mt-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {reviews.map((r) => (
+              <div
+                key={r._id}
+                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition"
+              >
+                {/* reviewer avatar + name */}
+                <div className="flex items-center gap-2 mb-2">
+                  <img
+                    src={r.userId.profilePictureUrl ?? '/images/default-profile.jpg'}
+                    alt={r.userId.name ?? 'Reviewer'}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                  <Link
+                    href={`/profile/${r.userId._id}`}
+                    className="font-semibold hover:underline"
+                  >
+                    {r.userId.name ?? 'Anonymous'}
+                  </Link>
+                </div>
+
+                {/* star badge */}
+                <StarRating value={r.rating} />
+
+                {/* comment */}
+                <p className="text-sm whitespace-pre-line font-redditLight mt-2">
+                  {r.comment}
                 </p>
-                <p>{review.comment}</p>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+          </div>
+      
 
       {/* PHOTO MODAL */}
       {modalOpen && service.photos && (
