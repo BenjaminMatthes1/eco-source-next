@@ -73,7 +73,7 @@ const CircularScore: React.FC<CircularScoreProps> = ({
         strokeDasharray={circ}
         strokeDashoffset={offset}
         strokeLinecap="round"
-        style={{ transition: 'stroke .5s linear' }}
+        style={{ transition: 'stroke .3s linear' }}
       />
       {/* value */}
       <text

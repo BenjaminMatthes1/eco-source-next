@@ -1,11 +1,11 @@
 // lib/mongooseClientPromise.ts
 import mongoose from 'mongoose';
+import User    from '@/models/User';
+import Product from '@/models/Product';
+import Service from '@/models/Service';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
-}
+if (!MONGODB_URI) throw new Error('Please define the MONGODB_URI environment variable');
 
 declare global {
   // allow global cache in TS
@@ -16,13 +16,25 @@ declare global {
 export default async function connectToDatabase() {
   if (!global._mongoosePromise) {
     global._mongoosePromise = mongoose.connect(MONGODB_URI, {
-      // any mongoose options you need
-        bufferCommands: false,
-        serverSelectionTimeoutMS: 3000, // ← abort after 3 s if cluster not reachable
-        socketTimeoutMS: 3000,          // ← network‑read timeout
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 3000,
     });
-    // optional: log once
-    global._mongoosePromise.then(() => console.log('✅  Mongoose connected'));
+
+    /* once connected the first time, sync indexes for key models */
+    global._mongoosePromise.then(async () => {
+      console.log('✅  Mongoose connected');
+      try {
+        await Promise.all([
+          User.syncIndexes(),
+          Product.syncIndexes(),
+          Service.syncIndexes(),
+        ]);
+        console.log('🔄  Indexes synced');
+      } catch (err) {
+        console.warn('⚠️  Index sync failed:', err);
+      }
+    });
   }
   return global._mongoosePromise;
 }

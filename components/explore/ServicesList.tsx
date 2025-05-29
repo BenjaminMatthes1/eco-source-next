@@ -13,64 +13,85 @@ interface Service {
   images?: string[];
 }
 
-const ServicesList = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [categories, setCategories] = useState<string[]>([]);
+export default function ServicesList() {
+  const [services,   setServices] = useState<Service[]>([]);
+  const [categories, setCats]     = useState<string[]>([]);
+  const [keyword,    setKeyword]  = useState('');
+  const [query,      setQuery]    = useState('');
+  const [cat,        setCat]      = useState('');
+  const [minPrice,   setMinPrice] = useState('');
+  const [maxPrice,   setMaxPrice] = useState('');
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await axios.get('/api/services/categories');
-        setCategories(response.data.categories);
-      } catch (error) {
-        console.error('Error fetching service categories:', error);
-      }
-    };
-
-    fetchCategories();
+    axios.get('/api/services/categories')
+      .then(r => setCats(r.data.categories))
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const params: any = {};
-        if (categoryFilter) params.category = categoryFilter;
-        const response = await axios.get('/api/services', { params });
-        setServices(response.data.services);
-      } catch (error) {
-        console.error('Error fetching services:', error);
-      }
-    };
+    const params: any = {};
+    if (query)    params.q        = query;
+    if (cat)      params.category = cat;
+    if (minPrice) params.minPrice = minPrice;
+    if (maxPrice) params.maxPrice = maxPrice;
 
-    fetchServices();
-  }, [categoryFilter]);
+    axios.get('/api/services', { params })
+      .then(r => setServices(r.data.services))
+      .catch(console.error);
+  }, [query, cat, minPrice, maxPrice]);
 
   return (
     <div>
-      <div className="flex mb-4">
-        {categories.map((category) => (
-          <button
-            key={category}
-            className={`btn mr-2 ${categoryFilter === category ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setCategoryFilter(category)}
-          >
-            {category}
-          </button>
-        ))}
-        {categoryFilter && (
-          <button className="btn btn-secondary" onClick={() => setCategoryFilter('')}>
-            Clear Filter
-          </button>
-        )}
+      <div className="flex gap-2 mb-4">
+        <input
+          className="input input-bordered flex-1"
+          placeholder="Search services…"
+          value={keyword}
+          onChange={e => setKeyword(e.target.value)}
+        />
+        <button className="btn btn-primary" onClick={() => setQuery(keyword.trim())}>
+          Search
+        </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {services.map((service) => (
-          <ServiceCard key={service._id} {...service} />
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {categories.map(c => (
+          <button
+            key={c}
+            className={`badge px-4 py-2 cursor-pointer ${cat===c ? 'badge-primary' : 'badge-ghost'}`}
+            onClick={() => setCat(cat===c ? '' : c)}
+          >
+            {c}
+          </button>
         ))}
+      </div>
+
+      <div className="flex items-center gap-4 mb-6">
+        <label className="flex flex-col text-xs">
+          Min $
+          <input
+            type="number"
+            className="input input-sm input-bordered mt-1"
+            value={minPrice}
+            onChange={e => setMinPrice(e.target.value)}
+            min={0}
+          />
+        </label>
+        <label className="flex flex-col text-xs">
+          Max $
+          <input
+            type="number"
+            className="input input-sm input-bordered mt-1"
+            value={maxPrice}
+            onChange={e => setMaxPrice(e.target.value)}
+            min={0}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {services.map(s => <ServiceCard key={s._id} {...s} />)}
       </div>
     </div>
   );
-};
-
-export default ServicesList;
+}

@@ -17,18 +17,13 @@ export async function GET(
   try {
     const { productId } = await params;
     const product = await Product.findById(productId)
+    .populate('userId', 'name profilePictureUrl') 
     .populate('reviews.userId', 'name profilePictureUrl');
       
 
     if (!product) {
       return NextResponse.json({ message: 'Product not found.' }, { status: 404 });
     }
-
-    // Optionally compute an ERS score on the fly
-    // const ersScore = calculateERSProductScore({
-    //   renewableMaterialsPercentage: ...,
-    //   ...
-    // });
 
     return NextResponse.json({ product /*, ersScore*/ }, { status: 200 });
   } catch (error) {

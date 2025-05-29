@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserNotifications } from '@/services/notificationService';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import connectToDatabase from '@/lib/mongooseClientPromise';
 
 export async function GET(request: NextRequest, context: any) {
+  await connectToDatabase();
     const params = await context.params;
     const userId = params.userId;
 

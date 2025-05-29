@@ -159,9 +159,10 @@ const ERSMetricsSummary: React.FC<Props> = ({ userId }) => {
   const focus    = sorted.filter((m) => m.score < 0.5).slice(0, 3);
 
   return (
-    <div className="bg-primary/90 text-white rounded-lg shadow-xl p-8 w-2/3 mx-auto">
+    <div className="bg-neutral rounded-lg shadow-lg p-8 w-2/3 mx-auto text-primary">
+      <h2 className="text-2xl font-semibold mb-4">ERS Metrics Summary</h2>
       {/* top row ------------------------------------------------- */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 font-redditLight">
         <div className="flex flex-col items-center">
           <CircularScore score={overall} size={120} stroke={14} />
           <p className="mt-1 text-sm opacity-80">
@@ -187,7 +188,7 @@ const ERSMetricsSummary: React.FC<Props> = ({ userId }) => {
       </div>
 
       {/* highlights --------------------------------------------- */}
-      <div className="mt-8 grid sm:grid-cols-2 gap-6">
+      <div className="mt-8 grid sm:grid-cols-2 gap-6 font-redditLight">
         <div>
           <h3 className="text-sm font-semibold mb-1">Doing great</h3>
           {strengths.length ? (

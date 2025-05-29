@@ -129,31 +129,52 @@ export async function PUT(
 
 // GET => List all products for a given user
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }   // ← note Promise
+  _req: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { userId } = await params;   
+  const { userId } = await params;
   await connectToDatabase();
+
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session)
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-  
-  if (session.user.id !== userId && session.user.role !== 'admin') {
+  if (session.user.id !== userId && session.user.role !== 'admin')
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-  }
 
   try {
-    const products = await Product.find({ userId }).sort({ createdAt: -1 });
+    // fetch raw docs (lean ➜ plain objects, Map ➜ object)
+    const raw = await Product.find({ userId })
+      .select(
+        'name description chosenMetrics metrics createdAt' // include createdAt
+      )
+      .sort({ createdAt: -1 })
+      .lean();
 
-    // Not strictly an error if zero products. Return an empty array or a message
-    if (!products || products.length === 0) {
-      return NextResponse.json({ message: 'No products found', products: [] }, { status: 200 });
-    }
+    // load scoring fn once
+    const { calculateERSItemScore } = await import(
+      '@/services/ersMetricsService'
+    );
+
+    // ensure every item has overallScore
+    const products = raw.map((p: any) => {
+      if (!p.metrics) p.metrics = {};
+      if (p.metrics.overallScore === undefined) {
+        p.metrics.overallScore = Math.round(
+          calculateERSItemScore({
+            chosenMetrics: p.chosenMetrics ?? [],
+            metrics:       p.metrics,
+          }).score
+        );
+      }
+      return p;
+    });
 
     return NextResponse.json({ products }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching user products:', error);
-    return NextResponse.json({ message: 'Error fetching products' }, { status: 500 });
+  } catch (err) {
+    console.error('Error fetching user products:', err);
+    return NextResponse.json(
+      { message: 'Error fetching products' },
+      { status: 500 }
+    );
   }
 }

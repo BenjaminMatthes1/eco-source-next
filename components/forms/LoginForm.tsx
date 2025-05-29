@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import NavBar from '@/components/layout/NavBar';
 import Image from 'next/image';
 import Link from 'next/link';
 import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
@@ -20,7 +19,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -33,15 +32,18 @@ const Login: React.FC = () => {
     if (result?.error) {
       setError('Invalid email or password');
     } else {
-      // Fetch user session to check role
-      const res = await fetch('/api/auth/session');
-      const { user } = await res.json();
+      // 1) get the fresh session (now contains user.role)
+      const sess = await fetch('/api/auth/session').then(r => r.json());
 
-      if (user.role === 'admin') {
-        router.push('/dashboard/admin/verify-documents'); // Redirect admins
-      } else {
-        router.push('/dashboard'); // Redirect regular users
-      }
+      // 2) decide destination
+      const role = sess?.user?.role;
+      const dest =
+        role === 'admin'
+          ? '/dashboard/admin/verify-documents'
+          : '/dashboard';
+
+      // 3) navigate
+      router.push(dest);
     }
   };
 
@@ -131,6 +133,11 @@ const Login: React.FC = () => {
                 <Link href="/signup" className="btn btn-ghost w-full mt-4 text-white hover:bg-transparent hover:text-secondary">
                   Not a Member? Sign Up Now
                 </Link>
+                <p className="mt-2 text-right">
+                  <a href="/auth/forgot" className="link link-secondary text-sm text-white font-redditLight">
+                    Forgot password?
+                  </a>
+                </p>
               </form>
             </div>
           </div>

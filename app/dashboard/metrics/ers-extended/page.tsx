@@ -17,7 +17,6 @@ import MetricSelect from '@/components/forms/MetricSelect';
 import { dropdownPrimaryWhiteMenu } from '@/utils/selectStyles';
 
 
-const PRIMARY = '#0B3D2E';
 /** 
  * Example user synergy keys 
  * (minus the old "certifications" array approach).
@@ -124,11 +123,11 @@ function UserDocumentsSection({ userId }: { userId: string }) {
               href={doc.url}
               target="_blank"
               rel="noreferrer"
-              className="text-primary underline"
+              className="text-primary underline font-redditLight"
             >
               {doc.name}
             </a>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 font-redditLight">
               ({doc.category || 'Uncategorized'}){' '}
               {doc.verified ? '[Verified]' : '[Pending]'}
             </span>

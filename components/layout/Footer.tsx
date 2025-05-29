@@ -28,13 +28,13 @@ const Footer: React.FC = () => {
       </div>
       <div>
         <span className="footer-title text-white">Legal</span>
-        <Link href="/terms" className="link link-hover text-white hover:text-secondary">
+        <Link href="/legal/terms" className="link link-hover text-white hover:text-secondary">
           Terms of Use
         </Link>
-        <Link href="/privacy" className="link link-hover text-white hover:text-secondary">
+        <Link href="/legal/privacy" className="link link-hover text-white hover:text-secondary">
           Privacy Policy
         </Link>
-        <Link href="/cookie" className="link link-hover text-white hover:text-secondary">
+        <Link href="/legal/cookies" className="link link-hover text-white hover:text-secondary">
           Cookie Policy
         </Link>
       </div>
@@ -78,8 +78,7 @@ const Footer: React.FC = () => {
       <div>
         <span className="footer-title text-white">Contact</span>
         <p className='text-white'>
-          Email: info@eco-source.com<br />
-          Phone: +1 (555) 123-4567
+          Email: admin@eco-source.com<br />
         </p>
       </div>
     </footer>

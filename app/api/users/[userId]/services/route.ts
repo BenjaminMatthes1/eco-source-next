@@ -139,33 +139,46 @@ export async function PUT(
 
 // GET => List all services for a given user
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }   // ← note Promise
+  _req: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
 ) {
-  const { userId } = await params;   
+  const { userId } = await params;
   await connectToDatabase();
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
 
-  
-  if (session.user.id !== userId && session.user.role !== 'admin') {
+  const session = await getServerSession(authOptions);
+  if (!session)
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (session.user.id !== userId && session.user.role !== 'admin')
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-  }
 
   try {
-    // Return all services for this user
-    const services = await Service.find({ userId }).exec();
+    const raw = await Service.find({ userId })
+      .select(
+        'name description chosenMetrics metrics createdAt' // include createdAt
+      )
+      .sort({ createdAt: -1 })
+      .lean();
 
-    if (!services || services.length === 0) {
-      // It's not truly an error if zero services, but let's keep this
-      return NextResponse.json({ message: 'No services found', services: [] }, { status: 200 });
-    }
+    const { calculateERSItemScore } = await import(
+      '@/services/ersMetricsService'
+    );
+
+    const services = raw.map((s: any) => {
+      if (!s.metrics) s.metrics = {};
+      if (s.metrics.overallScore === undefined) {
+        s.metrics.overallScore = Math.round(
+          calculateERSItemScore({
+            chosenMetrics: s.chosenMetrics ?? [],
+            metrics:       s.metrics,
+          }).score
+        );
+      }
+      return s;
+    });
 
     return NextResponse.json({ services }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching services:', error);
+  } catch (err) {
+    console.error('Error fetching services:', err);
     return NextResponse.json(
       { message: 'Error fetching services' },
       { status: 500 }

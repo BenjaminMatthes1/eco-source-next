@@ -19,6 +19,7 @@ export async function GET(
   try {
     const { serviceId } = await params;
     const service = await Service.findById(serviceId)
+    .populate('userId', 'name profilePictureUrl') 
     .populate('reviews.userId', 'name profilePictureUrl');
     
 

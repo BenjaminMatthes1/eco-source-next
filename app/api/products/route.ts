@@ -82,10 +82,19 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category');
+  const search   = searchParams.get('q') || '';          // keyword
+  const minPrice = Number(searchParams.get('minPrice'));
+  const maxPrice = Number(searchParams.get('maxPrice'));
 
   const query: any = {};
   if (category) {
     query.categories = category;
+    if (search)   query.$text = { $search: search };       // needs Mongo text index
+      if (!isNaN(minPrice) || !isNaN(maxPrice)) {
+        query.price = {};
+        if (!isNaN(minPrice)) query.price.$gte = minPrice;
+        if (!isNaN(maxPrice)) query.price.$lte = maxPrice;
+      }
   }
 
   try {

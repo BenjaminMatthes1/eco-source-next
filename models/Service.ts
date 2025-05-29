@@ -62,25 +62,7 @@ export interface IService extends Document {
   reviews: Review[];
   price: number;
   
-  /* Old ers metrics
-  materials?: {
-    name: string;
-    percentageRenewable: number;
-  }[];
-  energyUsage?: {
-    value?: number;
-    unit?: string; // "kWh", "MJ", or "N/A"
-  };
-  waterUsage?: {
-    value?: number;
-    unit?: string; // "liters", "gallons", or "N/A"
-  };
-  recyclable: boolean; // If the service deals with recyclables or fosters recycling
-  serviceCost?: number;        // Base cost of the service
-  carbonEmissions?: number;    // In kg CO2 or similar measure
-  costEffectiveness?: number;  // 0–10 rating
-  ethicalPractices?: string[]; // array of chosen practices
-  */
+
   chosenMetrics: string[];
   metrics: Map<string, any>;
 
@@ -117,32 +99,6 @@ const ServiceSchema = new Schema<IService>(
     categories: [{ type: String, default: [] }],
     price: { type: Number, required: true },
 
-    /* old ers metrics
-    materials: [
-      {
-        name: { type: String, required: true },
-        percentageRenewable: { type: Number, required: true },
-      },
-    ],
-    energyUsage: {
-      value: { type: Number, required: false },
-      unit: { type: String, required: false, default: 'N/A' },
-    },
-    waterUsage: {
-      value: { type: Number, required: false },
-      unit: { type: String, required: false, default: 'N/A' },
-    },
-    recyclable: { type: Boolean, default: false },
-    serviceCost: { type: Number, required: false },
-    carbonEmissions: { type: Number, required: false },
-    costEffectiveness: {
-      type: Number,
-      min: 0,
-      max: 10,
-      required: false,
-    },
-    ethicalPractices: [{ type: String }],
-    */
     chosenMetrics: {
       type: [String],
       default: [],
@@ -185,6 +141,8 @@ const ServiceSchema = new Schema<IService>(
   },
   { timestamps: true }
 );
+
+ServiceSchema.index({ name: 'text', description: 'text' });
 
 export default mongoose.models.Service ||
   mongoose.model<IService>('Service', ServiceSchema);

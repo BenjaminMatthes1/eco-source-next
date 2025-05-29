@@ -2,6 +2,7 @@
 import Sidebar from "@/components/layout/Sidebar";
 import Providers from '../providers';
 import NavBar from "@/components/layout/NavBar";
+import '@/lib/raiseListenerLimit';
 
 export const metadata = {
   title: 'Dashboard - Eco-Source',

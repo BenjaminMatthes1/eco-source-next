@@ -5,11 +5,25 @@ import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
 import clientPromise from './mongodb';
 import connectToDatabase from './mongooseClientPromise';
 import User, { IUser } from '@/models/User';
+import { getServerSession } from 'next-auth';
 
+
+const prod = process.env.NODE_ENV === 'production';
 export const authOptions: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise, {
     databaseName: process.env.MONGODB_DB || 'EcoSourceDB', 
   }),
+    cookies: {
+      sessionToken: {
+        name: prod ? '__Secure-eco-session': 'eco-session',              // custom cookie name
+        options: {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: prod,
+          path: '/',
+        },
+      },
+    },
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -23,6 +37,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         await connectToDatabase();
+
 
         const user = await User.findOne({ email: credentials.email }) as IUser | null;
         if (!user) {
@@ -71,6 +86,9 @@ export const authOptions: NextAuthOptions = {
         }
         return session;
     },
+    
   },
+
+  
   secret: process.env.NEXTAUTH_SECRET,
 };

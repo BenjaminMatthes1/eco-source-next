@@ -42,6 +42,8 @@ export interface IUser extends Document {
   bio?: string;
   email: string;
   password: string;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
   profilePictureUrl?: string;
   emailVerified?: Date;
   subscriptionStatus: 'free' | 'subscribed' | 'premium';
@@ -61,9 +63,6 @@ export interface IUser extends Document {
   service: mongoose.Types.ObjectId[];
   Post: mongoose.Types.ObjectId[];
 
-  /* old ERS metrics
-  ersMetrics: IUserERSMetrics;
-  */
 
   chosenMetrics: string[];
   metrics: Map<string, any>;
@@ -94,6 +93,8 @@ const UserSchema: Schema<IUser> = new Schema(
     name:  { type: String, unique: true, sparse: true },
     email: { type: String, unique: true, required: true },
     password: { type: String },
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
     bio: { type: String },
     profilePictureUrl: { type: String },
     emailVerified: { type: Date },
@@ -106,20 +107,7 @@ const UserSchema: Schema<IUser> = new Schema(
     website: { type: String },
     preferences: { type: PreferencesSchema, default: () => ({}) },
 
-    /**
-     Old structure for user-level ERS metrics
-    ersMetrics: {
-      // subdocument definition
-      economicImpactRating: { type: Number, default: 0 },
-      additionalEthicalPractices: [{ type: String, default: '' }], // or default: []
-      carbonFootprint: { type: Number, default: 0 },
-      carbonOffsets: { type: Number, default: 0 },
-      hasSustainabilityPolicy: { type: Boolean, default: false },
-      charitableDonationsPercent: { type: Number, default: 0 },
-      hasVolunteerPrograms: { type: Boolean, default: false },
-      overallScore: { type: Number, default: 0 },
-    },
-    */
+
     chosenMetrics: {
       type: [String],
       default: [],
@@ -151,6 +139,8 @@ const UserSchema: Schema<IUser> = new Schema(
   },
   { timestamps: true }
 );
+
+
 
 const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 export default User;

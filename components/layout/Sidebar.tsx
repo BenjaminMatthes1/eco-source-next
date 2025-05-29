@@ -3,9 +3,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user.role;
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard/admin/verify-documents' },
@@ -32,6 +35,21 @@ const Sidebar = () => {
               >
                 {item.name}
               </Link>
+               {/* admin-only link */}
+          {role === 'admin' && (
+            <li>
+              <Link
+                href="/dashboard/admin/contact-messages"
+                className={`block py-2.5 px-4 font-redditLight ${
+                  pathname === '/dashboard/admin/contact-messages'
+                    ? 'text-secondary'
+                    : 'hover:bg-secondary'
+                }`}
+              >
+                Contact Messages
+              </Link>
+            </li>
+          )}
             </li>
           ))}
         </ul>

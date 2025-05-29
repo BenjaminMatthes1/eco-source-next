@@ -61,28 +61,6 @@ export interface IProduct extends Document {
   reviews: Review[];
   categories: string[];
 
-  //previous ersmetric modeling
-  /*
-  materials: {
-    name: string;
-    percentageRenewable: number;
-  }[];
-  energyUsage?: {
-    value?: number;
-    unit?: string;
-  };
-  waterUsage?: {
-    value?: number;
-    unit?: string;
-  };
-  recyclable: boolean;
-  productionCost?: number;
-  lifecycleCost?: number;
-  carbonEmissions?: number;
-  costEffectiveness?: number; // 0–10
-  ethicalPractices?: string[]; // array of chosen practices
-  */
-
   uploadedDocuments: UploadedDocument[];
   isVerified: boolean;
   verificationPending: boolean;
@@ -124,36 +102,7 @@ const ProductSchema = new Schema<IProduct>(
     price: { type: Number, required: true },
     categories: [{ type: String, default: [] }],
 
-    /* old ers metrics:
-    materials: [
-      {
-        name: { type: String, required: true },
-        percentageRenewable: { type: Number, required: true },
-      },
-    ],
 
-    energyUsage: {
-      value: { type: Number, required: false },
-      unit: { type: String, required: false, default: 'N/A' },
-    },
-    waterUsage: {
-      value: { type: Number, required: false },
-      unit: { type: String, required: false, default: 'N/A' },
-    },
-
-    recyclable: { type: Boolean, default: false },
-
-    productionCost: { type: Number },
-    lifecycleCost: { type: Number },
-    carbonEmissions: { type: Number },
-
-    costEffectiveness: {
-      type: Number,
-      min: 0,
-      max: 10,
-    },
-    ethicalPractices: [{ type: String }],
-    */
 
     uploadedDocuments: [
       {
@@ -191,6 +140,7 @@ const ProductSchema = new Schema<IProduct>(
       costEffectiveness: [RatingSchema],
       economicViability: [RatingSchema],
     },
+    
   },
 
   
@@ -198,5 +148,6 @@ const ProductSchema = new Schema<IProduct>(
   { timestamps: true }
 );
 
+ProductSchema.index({ name: 'text', description: 'text' });
 export default mongoose.models.Product ||
   mongoose.model<IProduct>('Product', ProductSchema);
