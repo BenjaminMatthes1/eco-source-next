@@ -1,61 +1,58 @@
 'use client';
 
 import Link from 'next/link';
+import LiquidGauge from '@/components/ui/LiquidGauge';
 
-// Adjust the props to match your new fields.
-// Optionally display a single numeric "ersServiceScore" if you want to store it.
 interface ServiceCardProps {
   _id: string;
   name: string;
   description: string;
   category: string;
-  serviceCost?: number;    // Replacing "price"
-  images?: string[];
-  // If you want to display a final numeric score, define a prop like:
-  ersServiceScore?: number; 
+  serviceCost?: number;
+  photos?: { url: string }[];
+  metrics?: { overallScore: number };
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({
+export default function ServiceCard({
   _id,
   name,
   description,
   category,
   serviceCost,
-  images,
-  ersServiceScore,
-}) => {
+  photos = [],
+  metrics,
+}: ServiceCardProps) {
+  const cover = photos[0]?.url;
+
   return (
-    <div className="border p-4 rounded shadow-md hover:shadow-lg transition-shadow">
-      {/* Image */}
-      {images && images.length > 0 && (
+    <Link
+      href={`/services/${_id}`}
+      className="block bg-neutral rounded-lg shadow hover:shadow-xl transition p-4 text-primary h-full"
+    >
+      {cover && (
         <img
-          src={images[0]}
+          src={cover}
           alt={name}
-          className="w-full h-40 object-cover mb-2 rounded"
+          className="w-full h-40 object-cover rounded"
         />
       )}
 
-      {/* Details */}
-      <h2 className="text-xl font-semibold">{name}</h2>
-      <p className="text-gray-600 line-clamp-2">{description}</p>
-      <p className="text-sm text-gray-500">Category: {category}</p>
+      <h2 className="text-center font-semibold mt-3">{name}</h2>
+      <p className="text-xs text-center font-redditLight line-clamp-3 mt-1">
+        {description}
+      </p>
+      <p className="text-center text-[11px] opacity-70">{category}</p>
       {serviceCost !== undefined && (
-        <p className="text-primary font-bold mt-2">${serviceCost}</p>
+        <p className="text-center text-sm font-bold mt-1">${serviceCost}</p>
       )}
 
-      {/* ERS Score (optional) */}
-      {ersServiceScore !== undefined && (
-        <p className="text-green-500 font-bold mt-2">
-          ERS Score: {ersServiceScore}%
-        </p>
+      {metrics?.overallScore !== undefined ? (
+        <div className="flex justify-center mt-3">
+          <LiquidGauge score={metrics.overallScore} size={70} />
+        </div>
+      ) : (
+        <p className="text-center text-xs mt-3">—</p>
       )}
-
-      {/* View Details */}
-      <Link href={`/services/${_id}`} className="btn btn-secondary mt-4">
-        View Service
-      </Link>
-    </div>
+    </Link>
   );
-};
-
-export default ServiceCard;
+}

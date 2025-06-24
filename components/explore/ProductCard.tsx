@@ -1,58 +1,57 @@
 'use client';
 
 import Link from 'next/link';
-// Optional import if you want to compute or display ERS on the card
-// import { calculateERSProductScore } from '@/services/ersMetricsService';
+import LiquidGauge from '@/components/ui/LiquidGauge';
 
 interface ProductCardProps {
   _id: string;
   name: string;
   description: string;
   price: number;
-  images?: string[];
-  // If you want to display an actual score, store it or compute it
-  ersScore?: number;
+  photos?: { url: string }[];
+  metrics?: { overallScore: number };
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({
+export default function ProductCard({
   _id,
   name,
   description,
   price,
-  images = [],
-  ersScore,
-}) => {
-  // If you only have the raw product data, you could also do:
-  // const score = calculateERSProductScore({ ... });
-  // or fetch it from the server.
+  photos = [],
+  metrics,
+}: ProductCardProps) {
+  const cover = photos[0]?.url;
 
   return (
-    <div className="border p-4 rounded shadow-md hover:shadow-lg transition-shadow">
-      {/* Image */}
-      {images.length > 0 && (
+    <Link
+      href={`/products/${_id}`}
+      className="block bg-neutral rounded-lg shadow hover:shadow-xl transition p-4 text-primary h-full"
+    >
+      {cover ? (
         <img
-          src={images[0]}
+          src={cover}
           alt={name}
-          className="w-full h-40 object-cover mb-2 rounded"
+          className="w-full h-40 object-cover rounded"
         />
+      ): (
+  <div className="w-full h-40 bg-base-200 rounded flex items-center justify-center">
+    <span className="text-xs opacity-60">No photo</span>
+  </div>
       )}
 
-      {/* Details */}
-      <h2 className="text-xl font-semibold">{name}</h2>
-      <p className="text-gray-600 line-clamp-2">{description}</p>
-      <p className="text-primary font-bold mt-2">${price}</p>
+      <h2 className="text-center font-semibold mt-3">{name}</h2>
+      <p className="text-xs text-center font-redditLight line-clamp-3 mt-1">
+        {description}
+      </p>
+      <p className="text-center text-sm font-bold mt-1">${price}</p>
 
-      {/* ERS Metrics / Score */}
-      {ersScore !== undefined && (
-        <p className="text-green-500 font-bold mt-2">ERS Score: {ersScore}%</p>
+      {metrics?.overallScore !== undefined ? (
+        <div className="flex justify-center mt-3">
+          <LiquidGauge score={metrics.overallScore} size={70} />
+        </div>
+      ) : (
+        <p className="text-center text-xs mt-3">—</p>
       )}
-
-      {/* View Details */}
-      <Link href={`/products/${_id}`} className="btn btn-secondary mt-4">
-        View Product
-      </Link>
-    </div>
+    </Link>
   );
-};
-
-export default ProductCard;
+}

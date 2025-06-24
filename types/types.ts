@@ -58,6 +58,7 @@ export interface Conversation {
     rating: number; // Rating between 1 and 5
     comment: string; // Review text
     createdAt: Date; // Timestamp of the review
+    photos?: { _id: string; url: string; key?: string; name?: string }[];
   }
 
   interface PeerRatings {

@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-
 import EditProductForm from '@/components/forms/products/EditProductForm';
-import { Product } from '@/types/types';            // ← your Product (mongoose) type/interface
+import { Product } from '@/types/types';        
+
 
 const EditProductPage = () => {
-  const { productId } = useParams();                // /products/[productId]/edit
+  
+  const { productId } = useParams() as { productId: string };                // /products/[productId]/edit
   const router        = useRouter();
 
   const [product, setProduct] = useState<Product | null>(null);

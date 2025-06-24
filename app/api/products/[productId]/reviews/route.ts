@@ -4,7 +4,7 @@ import connectToDatabase from '@/lib/mongooseClientPromise';
 import Product, { IProduct } from '@/models/Product';  // import your typed Product
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { getToken } from 'next-auth/jwt';
+import { createNotification } from '@/services/notificationService';
 
 
 // If you want to recalc a product score after a review:
@@ -14,8 +14,8 @@ import { getToken } from 'next-auth/jwt';
 // GET => Retrieve all reviews for the product
 //
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { productId: string } }
+  _req: NextRequest,
+  { params }: { params: Promise<{ productId: string }> }   // ← Promise
 ) {
   await connectToDatabase();
 
@@ -51,19 +51,21 @@ export async function GET(
 //
 export async function POST(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }   // ← Promise
 ) {
+  const { productId } = await params;        
   await connectToDatabase();
 
   /* 1. who is the caller?  */
-  const token = await getToken({ req: request });
-  if (!token) {
+ const session = await getServerSession(authOptions);
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
-  const userId = token.sub!;                 // logged-in user id (string)
+  const userId = session.user.id;
+  const caller  = session.user.name ?? 'Someone';  // human-readable name            // logged-in user id (string)
 
   /* 2. validate body */
-  const { rating, comment } = await request.json();
+  const { rating, comment, photos = [] } = await request.json();
     const ratingNum = Number(rating);              // ← convert once
 
     // accept 0.5 increments between 0.5 and 5
@@ -91,7 +93,7 @@ export async function POST(
   }
 
   /* 3. fetch the product doc (NOT lean) */
-  const productDoc = await Product.findById<IProduct>(params.productId);
+  const productDoc = await Product.findById<IProduct>(productId);
   if (!productDoc) {
     return NextResponse.json({ message: 'Product not found' }, { status: 404 });
   }
@@ -121,12 +123,22 @@ export async function POST(
     rating,
     comment,
     createdAt: new Date(),
+    photos,
   });
 
   await productDoc.save();
 
+  // real-time notification to owner (again, skip self-review)
+    if (productDoc.userId.toString() !== userId) {
+      await createNotification(
+        productDoc.userId.toString(),
+        `${caller} reviewed your product "${productDoc.name}"`,
+        `/products/${productDoc._id}`
+      );
+    }
+
   
-  const doc = await Product.findById(params.productId)
+  const doc = await Product.findById(productId)
   .select('reviews')
   .populate('reviews.userId', 'name profilePictureUrl')
   .lean();

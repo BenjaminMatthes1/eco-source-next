@@ -10,6 +10,7 @@ import { SERVICE_METRICS } from '@/utils/metricOptions';
 import Select, { SingleValue } from 'react-select';
 import { dropdownListStyle } from '@/utils/selectStyles';
 import { metricLabel } from '@/utils/metricOptions';
+import PhotoPicker, { ExistingPhoto } from '@/components/forms/PhotoPicker';
 
 
 const DOCUMENT_CATEGORY_OPTIONS = [
@@ -44,14 +45,14 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>(
     service.uploadedDocuments || []
   );
-  const [photos, setPhotos] = useState<Photo[]>(service.photos || []);
-
+ 
   // Doc & Photo state
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docCategory, setDocCategory] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [photoUploadError, setPhotoUploadError] = useState('');
+  const [photos, setPhotos] = useState<ExistingPhoto[]>(service.photos || []);
+  
 
   // 4) Dropdown for synergy
   const [selectedMetric, setSelectedMetric] = useState('');
@@ -426,6 +427,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
       const uploadData = new FormData();
       uploadData.append('file', docFile);
       uploadData.append('category', docCategory);
+      
 
       const res = await fetch(`/api/services/${service._id}/upload-doc`, {
         method: 'POST',
@@ -468,11 +470,14 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
   // Photo Upload
   // -----------------------------
   
-  const handlePhotoUpload = async () => {
+  async function handlePhotoUpload(files: File[]) {
     try {
-      for (const file of selectedFiles) {
+     for (const file of files) {
         const formDataToSend = new FormData();
         formDataToSend.append('file', file);
+        formDataToSend.append('entity', 'product');
+        formDataToSend.append('kind', 'photo');
+        formDataToSend.append('category', docCategory);
 
         const res = await fetch(`/api/services/${service._id}/upload-photo`, {
           method: 'POST',
@@ -485,11 +490,9 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
         const newPhoto = (await res.json()) as Photo;
         setPhotos((prev) => [...prev, newPhoto]);
       }
-      setSelectedFiles([]);
-      (document.getElementById('servicePhotoInput') as HTMLInputElement).value = '';
     } catch (err: any) {
       console.error('Photo upload error:', err);
-      setPhotoUploadError(err.message);
+      setUploadError(err.message);
     }
   };
 
@@ -511,24 +514,28 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
   // -----------------------------
   // Submit entire updated service
   // -----------------------------
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-
+ async function handleSubmit(e: FormEvent) {
+   e.preventDefault();
+   setError('');
+   
     try {
-      // Build final updated service
-      const updated: Service = {
-        ...service,
-        name,
-        description,
-        categories: categories,
-        price,
-        chosenMetrics,
-        metrics,
-
-        uploadedDocuments,
-        photos,
-      };
+     // Guarantee each photo has a “key”
+     const photosForSave: Photo[] = photos.map((p, idx) => ({
+       key: p.key ?? p._id ?? String(idx),   // fallback key
+       ...p,
+     }));
+ 
+     const updated: Service = {
+       ...service,
+       name,
+       description,
+       price,
+       categories,
+       chosenMetrics,
+       metrics,
+       uploadedDocuments,
+       photos: photosForSave,                // ← use the adapted array
+     };
 
       await onSubmit(updated);
     } catch (err) {
@@ -783,73 +790,18 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSubmit }) 
           </div>
 
           {/* Photo section */}
-          <div className="bg-primary bg-opacity-90 p-4 rounded-lg shadow-lg m-4 w-full max-w-md">
-            <h3 className="text-2xl font-bold text-white mb-2">Service Photos</h3>
+          <PhotoPicker
+            photos={photos}
 
-            <div className="flex flex-wrap gap-4 mb-4">
-              {photos.map((photo) => (
-                <div key={photo._id} className="relative w-24 h-24">
-                  <img
-                    src={photo.url}
-                    alt={photo.name || 'Service Photo'}
-                    className="object-cover w-full h-full border border-gray-300 rounded"
-                  />
-                  <button
-                    type="button"
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded text-xs"
-                    onClick={() => handleDeletePhoto(photo._id.toString())}
-                  >
-                    X
-                  </button>
-                </div>
-              ))}
-            </div>
+            /* permanently delete on server + update state */
+            onDelete={async (id) => {
+              await handleDeletePhoto(id);
+              setPhotos((prev) => prev.filter((p) => p._id !== id));
+            }}
 
-            {selectedFiles.length > 0 && (
-              <div className="text-sm text-gray-700 mb-4">
-                <p className="font-semibold text-white">Files to upload:</p>
-                <ul className="list-disc list-inside text-white">
-                  {selectedFiles.map((file, idx) => (
-                    <li key={idx}>{file.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <input
-              id="servicePhotoInput"
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  setSelectedFiles(Array.from(e.target.files));
-                }
-              }}
-            />
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="servicePhotoInput"
-                className="inline-flex items-center px-4 py-2 bg-secondary text-white 
-                           rounded-md cursor-pointer hover:bg-accent focus:outline-none"
-              >
-                <FaLeaf className="mr-2" />
-                <span>Select Photo(s)</span>
-              </label>
-              <button
-                type="button"
-                onClick={handlePhotoUpload}
-                className="inline-flex items-center px-4 py-2 bg-secondary text-white 
-                           rounded-md cursor-pointer hover:bg-accent focus:outline-none"
-              >
-                Upload
-              </button>
-            </div>
-            {photoUploadError && (
-              <p className="text-red-500 text-sm mt-2">{photoUploadError}</p>
-            )}
-          </div>
+            /* upload new files (PhotoPicker passes you File[]) */
+            onUpload={handlePhotoUpload}
+          />
         </div>
       </div>
     </div>

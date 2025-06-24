@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getServerSession } from 'next-auth/next';
+import { authOptions }       from '@/lib/authOptions';
 import connectToDatabase from '@/lib/mongooseClientPromise';
 import Product from '@/models/Product';
 import mongoose from 'mongoose';
+import { createNotification } from '@/services/notificationService';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { productId: string } }
+  { params }: { params: Promise<{ productId: string }> }   // ← Promise type
 ) {
+  const { productId } = await params;
   await connectToDatabase();
 
-  const token = await getToken({ req: request });
-  if (!token) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
-  const userId = token.sub; // The logged-in user's ID
+  const userId = session.user.id;
+  const caller  = session.user.name ?? 'Someone';  // human-readable name
 
-  try {
-    const { productId } = params;
+  try {  
     const { metric, rating } = await request.json();
 
     // We only allow costEffectiveness or economicViability
@@ -35,6 +38,8 @@ export async function POST(
     }
 
     // Disallow the owner from rating their own product
+    console.log('product.userId:', product.userId.toString());
+    console.log('userId:', userId);
     if (product.userId.toString() === userId) {
       return NextResponse.json({ message: 'Cannot rate your own product' }, { status: 403 });
     }
@@ -67,6 +72,14 @@ export async function POST(
     product.metrics.set(metric, { average, count });
 
     await product.save();
+    // notify owner (skip if rater **is** owner)
+    if (product.userId.toString() !== userId) {
+      await createNotification(
+        product.userId.toString(),          // recipient (owner)
+        `${caller} rated your product "${product.name}"`,  // message
+        `/products/${product._id}`          // link
+      );
+    }
 
     return NextResponse.json({ message: 'Rating submitted', product }, { status: 200 });
   } catch (err: any) {

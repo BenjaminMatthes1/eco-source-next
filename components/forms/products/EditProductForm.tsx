@@ -10,6 +10,7 @@ import { METRIC_SELECT_OPTIONS } from '@/utils/metricOptions';
 import Select, {SingleValue} from 'react-select';
 import { dropdownListStyle } from '@/utils/selectStyles';
 import { metricLabel } from '@/utils/metricOptions';
+import PhotoPicker, { ExistingPhoto } from '@/components/forms/PhotoPicker';
 
 
 type Option = { value: string; label: string };
@@ -33,7 +34,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
   // Convert existing product fields into synergy-based local state
   // We'll keep these top-level: _id, name, description, price, etc.
   // But move any old environment fields into synergy if you want to load them.
-  // For demonstration, let's do a "chosenMetrics" + "metrics" approach:
+  // For demonstration, let's do a "chosenMetrics"  "metrics" approach:
   const initialChosen = product.chosenMetrics || [];
   const initialMetrics = { ...product.metrics };
 
@@ -51,7 +52,8 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>(
     product.uploadedDocuments || []
   );
-  const [photos, setPhotos] = useState<Photo[]>(product.photos || []);
+
+  
 
   // For doc upload
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -59,8 +61,8 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
   const [uploadError, setUploadError] = useState('');
 
   // For photo upload
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [photoUploadError, setPhotoUploadError] = useState('');
+  const [photos, setPhotos] = useState<ExistingPhoto[]>(product.photos || []);
 
   // For synergy: "Add ERS Metric" dropdown
   const [selectedMetric, setSelectedMetric] = useState<string>('');
@@ -99,7 +101,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
       ['energyUsage', 'energyProduction', 'waterUsage', 'waterRecycled',
        'carbonEmissions', 'carbonOffsets', 'wasteGenerated', 'wasteRecycled'].includes(selectedMetric)
     ) {
-      // numeric + unit
+      // numeric  unit
       initialValue = { value: '', unit: '' };
     }
 
@@ -275,7 +277,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
           onClick={addMat}
           className="text-sm text-white underline hover:text-secondary"
         >
-          + Add Material
+           Add Material
         </button>
         <button
           type="button"
@@ -344,7 +346,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
     );
   };
 
-  // Numeric + Unit
+  // Numeric  Unit
   const renderNumericWithUnit = (metricKey: string, objVal: { value: string; unit: string }) => {
     const ENERGY_UNITS = ['kWh', 'MJ', 'MWh'];
     const WATER_UNITS = ['liters', 'gallons'];
@@ -424,6 +426,9 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
       const formDataToSend = new FormData();
       formDataToSend.append('file', docFile);
       formDataToSend.append('category', docCategory);
+      formDataToSend.append('entity', 'product');
+      formDataToSend.append('kind', 'photo');
+      
 
       // We assume product._id is the DB ID
       const res = await fetch(`/api/products/${product._id}/upload-doc`, {
@@ -468,33 +473,39 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
   // -----------------------------
   // 5) Photo Upload
   // -----------------------------
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
-  const handlePhotoUpload = async () => {
+  async function handlePhotoUpload(files: File[]) {
+  setPhotoUploadError('');
+
+  const uploaded: Photo[] = [];
+
+  for (const file of files) {
     try {
-      for (const file of photoFiles) {
-        const formDataToSend = new FormData();
-        formDataToSend.append('file', file);
+      const fd = new FormData();
+      fd.append('file', file);
 
-        const res = await fetch(`/api/products/${product._id}/upload-photo`, {
-          method: 'POST',
-          body: formDataToSend,
-        });
+      const res = await fetch(
+        `/api/products/${product._id}/upload-photo`,   // or services
+        { method: 'POST', body: fd }
+      );
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Failed to upload photo');
-        }
-
-        const newPhoto = (await res.json()) as Photo;
-        setPhotos((prev) => [...prev, newPhoto]);
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error ?? 'Upload failed');
       }
-      setPhotoFiles([]);
-      (document.getElementById('photoUpload') as HTMLInputElement).value = '';
+
+      const newPhoto: Photo = await res.json(); // { _id, url, … }
+      uploaded.push(newPhoto);
     } catch (err: any) {
-      console.error('Error uploading photos:', err);
-      setPhotoUploadError(err.message);
+      setPhotoUploadError(
+        prev => prev
+          ? `${prev}\n• ${file.name}: ${err.message}`
+          : `• ${file.name}: ${err.message}`
+      );
     }
-  };
+  }
+
+  if (uploaded.length) setPhotos(prev => [...prev, ...uploaded]);
+}
 
   const handleDeletePhoto = async (photoId: string) => {
     try {
@@ -514,23 +525,28 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
   // -----------------------------
   // 6) Submit the entire updated product
   // -----------------------------
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
+  async function handleSubmit(e: FormEvent) {
+  e.preventDefault();
+  setError('');
+  
+   try {
+    // Guarantee each photo has a “key”
+    const photosForSave: Photo[] = photos.map((p, idx) => ({
+      key: p.key ?? p._id ?? String(idx),   // fallback key
+      ...p,
+    }));
 
-    try {
-      // Build final updated data
-      const updated: Product = {
-        ...product,
-        name,
-        description,
-        price,
-        categories,
-        chosenMetrics,
-        metrics,
-        uploadedDocuments, // docs
-        photos,            // photos
-      };
+    const updated: Product = {
+      ...product,
+      name,
+      description,
+      price,
+      categories,
+      chosenMetrics,
+      metrics,
+      uploadedDocuments,
+      photos: photosForSave,                // ← use the adapted array
+    };
 
       await onSubmit(updated);
     } catch (err) {
@@ -614,7 +630,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
 
               {/* Synergy Add Metric */}
               <div className="mt-6">
-                <h3 className="text-sm font-medium mb-1">+ Add ERS Metric</h3>
+                <h3 className="text-sm font-medium mb-1"> Add ERS Metric</h3>
 
                 <div className="flex items-center gap-2">
                   {/* NEW styled picker */}
@@ -631,7 +647,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
                     onClick={handleAddMetric}
                     className="btn btn-sm btn-accent"
                   >
-                    + Add
+                     Add
                   </button>
                 </div>
               </div>
@@ -734,7 +750,7 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
           </div>
         </div>
 
-        {/* Right side: Photos + Info */}
+        {/* Right side: Photos  Info */}
         <div className="w-1/2 hidden md:flex flex-col items-center justify-center">
           <div className="bg-white bg-opacity-90 p-8 rounded-lg shadow-lg m-4 max-w-md">
             <h2 className="text-3xl font-bold mb-4 text-primary">Update Your Product</h2>
@@ -753,58 +769,18 @@ const EditProductForm: React.FC<EditProductFormProps> = ({ product, onSubmit }) 
           </div>
 
           {/* Photo Section */}
-          <div className="bg-primary bg-opacity-90 p-4 rounded-lg shadow-lg m-4 w-full max-w-md">
-            <h3 className="text-2xl font-bold text-white mb-2">Product Photos</h3>
+          <PhotoPicker
+            photos={photos}
 
-            {/* Display existing photos */}
-            <div className="flex flex-wrap gap-4 mb-4">
-              {photos.map((photo) => (
-                <div key={photo._id} className="relative w-24 h-24">
-                  <img
-                    src={photo.url}
-                    alt={photo.name || 'Product Photo'}
-                    className="object-cover w-full h-full border border-gray-300 rounded"
-                  />
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => handleDeletePhoto(photo._id.toString())}
-                  >
-                    X
-                  </button>
-                </div>
-              ))}
-            </div>
+            /* permanently delete on server  update state */
+            onDelete={async (id) => {
+              await handleDeletePhoto(id);
+              setPhotos((prev) => prev.filter((p) => p._id !== id));
+            }}
 
-            {/* Photo upload input */}
-            {photoUploadError && <p className="text-red-500 text-sm">{photoUploadError}</p>}
-            <input
-              id="photoUpload"
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) {
-                  setPhotoFiles(Array.from(e.target.files));
-                }
-              }}
-            />
-            <label
-              htmlFor="photoUpload"
-              className="btn-tertiary pt-2 pb-4"
-            >
-              <FaLeaf className="mr-2" />
-              <span>Select Photo(s)</span>
-            </label>
-            <button
-              type="button"
-              onClick={handlePhotoUpload}
-              className="btn btn-secondary ml-4"
-            >
-              Upload
-            </button>
-          </div>
+            /* upload new files (PhotoPicker passes you File[]) */
+            onUpload={handlePhotoUpload}
+          />
         </div>
       </div>
     </div>

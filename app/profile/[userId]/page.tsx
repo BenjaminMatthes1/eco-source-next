@@ -11,6 +11,7 @@ import ProfileForumPosts from '@/components/profile/ProfileForumPosts';
 import { useSession } from 'next-auth/react';
 import ERSMetricsProfile from '@/components/profile/ERSMetricsProfile';
 import Collapsible from '@/components/ui/Collapsible';
+import Loading from '@/components/ui/Loading'
 
 interface IUserERSMetrics {
   economicImpactRating: number;       // 0–10
@@ -66,12 +67,12 @@ const UserProfilePage = () => {
   }, [userId, router]);
 
   if (!user) {
-    return <p className="p-6">Loading profile...</p>;
+    return <Loading />;
   }
 
   const handleMessageClick = async () => {
     if (!session?.user?.id) {
-      router.push('/login');
+      router.push('/');
       return;
     }
     try {

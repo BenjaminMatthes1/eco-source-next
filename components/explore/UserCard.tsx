@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import CircularScore from '@/components/ui/circularScore';
+import SemiRingScore from '../ui/SemiRingScore';
+import LiquidGauge from '../ui/LiquidGauge';
 
 interface UserCardProps {
   _id: string;
@@ -61,7 +62,7 @@ export default function UserCard({
       {/* overall score ring ----------------------------------- */}
       {metrics?.overallScore !== undefined ? (
         <div className="flex justify-center mt-3">
-          <CircularScore score={metrics.overallScore} size={64} stroke={8} />
+          <LiquidGauge score={metrics.overallScore} size={50} />
         </div>
       ) : (
         <p className="text-center text-xs mt-3">—</p>

@@ -78,28 +78,59 @@ export async function GET(request: NextRequest) {
   await connectToDatabase();
 
   const { searchParams } = new URL(request.url);
-  const search   = searchParams.get('q') || '';          // keyword
-  const minPrice = Number(searchParams.get('minPrice'));
-  const maxPrice = Number(searchParams.get('maxPrice'));
-  const category = searchParams.get('category');
+  const search   = searchParams.get('q')        || '';
+  const category = searchParams.get('category') || '';
+  const minRaw = searchParams.get('minPrice');
+  const maxRaw = searchParams.get('maxPrice');
+  const minPrice = minRaw ? Number(minRaw) : undefined;
+  const maxPrice = maxRaw ? Number(maxRaw) : undefined;
 
+  /* ---------- build query ---------- */
   const query: any = {};
-  if (category) {
-    query.category = category;
-    if (search)   query.$text = { $search: search };       // needs Mongo text index
-      if (!isNaN(minPrice) || !isNaN(maxPrice)) {
-        query.price = {};
-        if (!isNaN(minPrice)) query.price.$gte = minPrice;
-        if (!isNaN(maxPrice)) query.price.$lte = maxPrice;
-      }
-    }
+
+  // single-value category field
+  if (category) query.category = category;
+
+  // keyword on name / description
+  if (search.trim()) {
+    query.$or = [
+      { name:        { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  // cost range  (rename "price" to "serviceCost" if that’s your schema field)
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    query.price = {};
+    if (minPrice !== undefined) query.price.$gte = minPrice;
+    if (maxPrice !== undefined) query.price.$lte = maxPrice;
+  }
+
   try {
-    // Return all or filtered services
-    // Optionally select fields
-    const services = await Service.find(query).lean();
+    const raw = await Service.find(query)
+      .select('name description category price photos chosenMetrics metrics')
+      .lean();
+
+    const { calculateERSItemScore } = await import('@/services/ersMetricsService');
+    const services = raw.map((s: any) => {
+      if (!s.metrics) s.metrics = {};
+      if (s.metrics.overallScore === undefined) {
+        s.metrics.overallScore = Math.round(
+          calculateERSItemScore({
+            chosenMetrics: s.chosenMetrics ?? [],
+            metrics:       s.metrics,
+          }).score
+        );
+      }
+      return s;
+    });
+
     return NextResponse.json({ services }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching services:', error);
-    return NextResponse.json({ message: 'Error fetching services' }, { status: 500 });
+  } catch (err) {
+    console.error('Error fetching services:', err);
+    return NextResponse.json(
+      { message: 'Error fetching services' },
+      { status: 500 }
+    );
   }
 }

@@ -17,6 +17,14 @@ export async function createNotification(
   return notif;
 }
 
+// helpers (used nowhere else but handy)
+export function emitRead(userId: string, notifId: string) {
+  getIO().to(userId).emit('notification:read', notifId);
+}
+export function emitRemoved(userId: string, notifId: string) {
+  getIO().to(userId).emit('notification:removed', notifId);
+}
+
 export async function getUserNotifications(userId: string) {
   return Notification.find({ userId }).sort({ timestamp: -1 }).lean();
 }

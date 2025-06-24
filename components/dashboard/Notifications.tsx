@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSocket } from '@/lib/socketClient';
 import Link from 'next/link';
+import { getIO } from '@/lib/socketServer';
 
 interface NotificationsProps {
   userId: string | undefined;
@@ -79,6 +80,15 @@ const markRead = async (id: string) => {
   }
 };
 
+const removeOne = async (id: string) => {
+  try {
+    await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
+    setNotifications(prev => prev.filter(n => n._id !== id));
+  } catch (err) {
+    console.error('Failed to delete notification', err);
+  }
+};
+
 
 return (
   <div className="bg-neutral rounded-lg shadow-lg p-8">
@@ -86,32 +96,47 @@ return (
 
     <ul className="text-lg font-redditLight">
       {notifications.map((n) => (
-        <li key={n._id} className="mb-2">
-          {n.link ? (
-            <Link
-              href={n.link}
-              className={`block p-2 rounded hover:bg-neutral
-                          ${n.read ? 'opacity-70' : 'bg-primary/20'}`}
-              onClick={() => markRead(n._id)}
-            >
-              {n.message}
-              <span className="block text-xs text-gray-500">
-                {new Date(n.timestamp).toLocaleString()}
-              </span>
-            </Link>
-          ) : (
-            <span
-              className={`block p-2 rounded
-                          ${n.read ? 'opacity-70' : 'bg-primary/20'}`}
-            >
-              {n.message}
-              <span className="block text-xs text-gray-500">
-                {new Date(n.timestamp).toLocaleString()}
-              </span>
-            </span>
-          )}
-        </li>
-      ))}
+  <li                   /* 👈 make this a hover-group */
+    key={n._id}
+    className="mb-2 flex items-start gap-2 group"
+  >
+    {/* ------- message block --------------------------------- */}
+    {n.link ? (
+      <Link
+        href={n.link}
+        onClick={() => markRead(n._id)}
+        className={`flex-1 p-2 rounded transition
+                    hover:bg-neutral
+                    ${n.read ? 'opacity-70' : 'bg-primary/20'}`}
+      >
+        {n.message}
+        <span className="block text-xs text-gray-500">
+          {new Date(n.timestamp).toLocaleString()}
+        </span>
+      </Link>
+    ) : (
+      <span
+        className={`flex-1 p-2 rounded transition
+                    ${n.read ? 'opacity-70' : 'bg-primary/20'}`}
+      >
+        {n.message}
+        <span className="block text-xs text-gray-500">
+          {new Date(n.timestamp).toLocaleString()}
+        </span>
+      </span>
+    )}
+
+    {/* ------- dismiss button -------------------------------- */}
+    <button
+      aria-label="Dismiss"
+      onClick={() => removeOne(n._id)}
+      className="text-sm px-1 opacity-0
+                 transition group-hover:opacity-100"
+    >
+      ×
+    </button>
+  </li>
+))}
     </ul>
   </div>
 );

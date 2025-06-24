@@ -7,6 +7,12 @@ import axios from 'axios';
 import Select from 'react-select';
 import { dropdownListStyle } from '@/utils/selectStyles';
 import { marked } from 'marked';
+import PhotoPicker, { ExistingPhoto } from '@/components/forms/PhotoPicker';
+
+const uuid = () =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 interface TagOption { label: string; value: string }
 
@@ -23,6 +29,7 @@ export default function NewPostPage() {
   const [title, setTitle]       = useState('');
   const [content, setContent]   = useState('');
   const [tags, setTags]         = useState<TagOption[]>([]);
+  const [photos, setPhotos]     = useState<ExistingPhoto[]>([]);
   const [tab, setTab]           = useState<'write'|'preview'>('write');
   const [pending, startTx]      = useTransition();
   const [error, setError]       = useState<string | null>(null);
@@ -41,6 +48,7 @@ export default function NewPostPage() {
           title:   title.trim(),
           content: content.trim(),
           tags:    tags.map(t => t.value),
+          photos:  photos.map(p => ({ url: p.url, key: p.key, name: p.name })),
         });
         router.push('/dashboard/forum');
       } catch (err: any) {
@@ -146,6 +154,30 @@ export default function NewPostPage() {
             />
           )}
         </div>
+
+        {/* IMAGES */}
+        <PhotoPicker
+          photos={photos}
+          onDelete={async (id) => setPhotos(p => p.filter(x => x._id !== id))}
+          onUpload={async (files) => {
+            const uploaded = await Promise.all(
+              files.map(async (f) => {
+                const form = new FormData();
+                form.append('file', f);
+                form.append('entity', 'post');
+                form.append('kind',   'photo');
+                const { data } = await axios.post('/api/uploads', form);
+
+                const tempId =
+                  typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                return { _id: uuid(), url: data.url, key: data.key, name: f.name };
+              })
+            );
+            setPhotos(p => [...p, ...uploaded]);
+          }}
+        />
 
         {/* SUBMIT */}
         <button

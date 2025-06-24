@@ -9,18 +9,18 @@ interface Service {
   name: string;
   description: string;
   category: string;
-  price?: number;
-  images?: string[];
+  serviceCost?: number;
+  photos?: { url: string }[];
+  metrics?: { overallScore: number };
 }
 
 export default function ServicesList() {
-  const [services,   setServices] = useState<Service[]>([]);
-  const [categories, setCats]     = useState<string[]>([]);
-  const [keyword,    setKeyword]  = useState('');
-  const [query,      setQuery]    = useState('');
-  const [cat,        setCat]      = useState('');
-  const [minPrice,   setMinPrice] = useState('');
-  const [maxPrice,   setMaxPrice] = useState('');
+  const [services,  setServices] = useState<Service[]>([]);
+  const [categories,setCats]     = useState<string[]>([]);
+  const [keyword,   setKeyword]  = useState('');
+  const [cat,       setCat]      = useState('');
+  const [minPrice,  setMinPrice] = useState('');
+  const [maxPrice,  setMaxPrice] = useState('');
 
   useEffect(() => {
     axios.get('/api/services/categories')
@@ -30,43 +30,27 @@ export default function ServicesList() {
 
   useEffect(() => {
     const params: any = {};
-    if (query)    params.q        = query;
-    if (cat)      params.category = cat;
-    if (minPrice) params.minPrice = minPrice;
-    if (maxPrice) params.maxPrice = maxPrice;
+    if (keyword.trim()) params.q        = keyword.trim();
+    if (cat)            params.category = cat;
+    if (minPrice)       params.minPrice = minPrice;
+    if (maxPrice)       params.maxPrice = maxPrice;
 
     axios.get('/api/services', { params })
       .then(r => setServices(r.data.services))
       .catch(console.error);
-  }, [query, cat, minPrice, maxPrice]);
+  }, [keyword, cat, minPrice, maxPrice]);
 
   return (
     <div>
-      <div className="flex gap-2 mb-4">
+      {/* search + price filters */}
+      <div className="flex flex-wrap gap-4 mb-6">
         <input
-          className="input input-bordered flex-1"
-          placeholder="Search services…"
+          className="input input-bordered flex-1 min-w-[200px]"
+          placeholder="Search name or description…"
           value={keyword}
           onChange={e => setKeyword(e.target.value)}
         />
-        <button className="btn btn-primary" onClick={() => setQuery(keyword.trim())}>
-          Search
-        </button>
-      </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {categories.map(c => (
-          <button
-            key={c}
-            className={`badge px-4 py-2 cursor-pointer ${cat===c ? 'badge-primary' : 'badge-ghost'}`}
-            onClick={() => setCat(cat===c ? '' : c)}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-4 mb-6">
         <label className="flex flex-col text-xs">
           Min $
           <input
@@ -77,6 +61,7 @@ export default function ServicesList() {
             min={0}
           />
         </label>
+
         <label className="flex flex-col text-xs">
           Max $
           <input
@@ -89,8 +74,24 @@ export default function ServicesList() {
         </label>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {services.map(s => <ServiceCard key={s._id} {...s} />)}
+      {/* category chips */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {categories.map(c => (
+          <button
+            key={c}
+            className={`badge px-4 py-2 cursor-pointer ${cat === c ? 'badge-primary' : 'badge-ghost'}`}
+            onClick={() => setCat(cat === c ? '' : c)}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* results */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {services.map(s => (
+          <ServiceCard key={s._id} {...s} />
+        ))}
       </div>
     </div>
   );

@@ -4,13 +4,9 @@ import { User } from 'next-auth';
 
 
 interface AccountDetailsProps {
-  user: {
-    email?: string;
-    role?: string;
-    subscriptionStatus?: string;
-  };
+  user?: Pick<User, 'email' | 'role' | 'subscriptionStatus'>;
+  // email is now string | null | undefined, matching NextAuth
 }
-
 const AccountDetails: React.FC<AccountDetailsProps> = ({ user }) => {
   return (
     <div className="bg-neutral rounded-lg shadow-lg p-8 text-primary">

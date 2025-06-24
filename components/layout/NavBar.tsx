@@ -77,7 +77,10 @@ const NavBar: React.FC = () => {
                   Admin Dashboard
                 </Link>
               )}
-              <button onClick={() => signOut()} className="btn btn-ghost">
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}   // ← redirects to homepage
+                className="btn btn-ghost"
+              >
                 Sign Out
               </button>
               {/* Notification bell */}

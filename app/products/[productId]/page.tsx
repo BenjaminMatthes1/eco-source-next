@@ -19,6 +19,8 @@ import {
 import mongoose from 'mongoose';
 import ProductERSPanel from '@/components/forms/products/ProductERSPanel';
 import { StarsInput } from '@/components/ui/Stars';
+import Loading from '@/components/ui/Loading'
+import ReviewSection from '@/components/reviews/ReviewSection';
 
 
 
@@ -254,27 +256,10 @@ const ProductDetailsPage: React.FC = () => {
     );
   };
 
-  // Reviews
-  const handleReviewSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
 
-    try {
-      await axios.post(`/api/products/${productId}/reviews`, reviewData);
-      setReviewData({ rating: '', comment: '' });
-
-      // re-fetch product
-      const updatedRes = await axios.get(`/api/products/${productId}`);
-      const updatedProd: Product = updatedRes.data.product;
-      setProduct(updatedProd);
-      setReviews(updatedProd.reviews || []);
-    } catch (err) {
-      console.error('Review submit error:', err);
-      setError('Error submitting review. Please try again.');
-    }
-  };
-
-  if (loading) return <p className="m-6 animate-in fade-in">Loading Product...</p>;
+  if (loading) {
+  return <Loading />;
+}
   if (!product) {
     return (
       <p className="m-6 text-red-500 animate-in fade-in">
@@ -498,75 +483,13 @@ const ProductDetailsPage: React.FC = () => {
       </div>
 
         {/* Reviews */}
-        <div className="ml-10 mt-10">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800">Reviews</h2>
-          {!isOwner && !alreadyReviewed && (
-           <form onSubmit={handleReviewSubmit} className="space-y-4 max-w-md bg-primary/10 p-4 rounded-lg">
-            <div>
-              <label className="block text-sm font-redditLight mb-1">
-                Rating
-              </label>
-              <StarsInput
-                value={parseFloat(reviewData.rating || '0')}
-                onChange={(val) =>
-                  setReviewData({ ...reviewData, rating: String(val) })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="comment" className="block text-sm font-redditLight">
-                Comment
-              </label>
-              <textarea
-                id="comment"
-                value={reviewData.comment}
-                onChange={(e) =>
-                  setReviewData({ ...reviewData, comment: e.target.value })
-                }
-                className="w-full border p-2"
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-secondary">
-              Submit Review
-            </button>
-          </form>
-          )}
-          {error && <p className="text-red-500 mt-2">{error}</p>}
-
-          {/*  responsive grid: 1 col → 2 cols (sm) → 3 cols (lg) */}
-          <div className="grid gap-4 mt-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {reviews.map((r) => (
-              <div
-                key={r._id}
-                className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition"
-              >
-                {/* reviewer avatar + name */}
-                <div className="flex items-center gap-2 mb-2">
-                  <img
-                    src={r.userId.profilePictureUrl ?? '/images/default-profile.jpg'}
-                    alt={r.userId.name ?? 'Reviewer'}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                  <Link
-                    href={`/profile/${r.userId._id}`}
-                    className="font-semibold hover:underline"
-                  >
-                    {r.userId.name ?? 'Anonymous'}
-                  </Link>
-                </div>
-
-                {/* star badge */}
-                <StarRating value={r.rating} />
-
-                {/* comment */}
-                <p className="text-sm whitespace-pre-line font-redditLight mt-2">
-                  {r.comment}
-                </p>
-              </div>
-            ))}
-          </div>
-          </div>
+         <ReviewSection
+          itemType="product"
+          itemId={String(productId)}
+          initial={reviews}
+          isOwner={isOwner}
+        />
+        
       {/* PHOTO MODAL */}
       {modalOpen && product.photos && (
         <div

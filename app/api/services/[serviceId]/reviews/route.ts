@@ -1,26 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import mongoose, { Types } from 'mongoose';
-import { getServerSession } from 'next-auth/next';
-import { getToken } from 'next-auth/jwt';
+import { NextRequest, NextResponse }  from 'next/server';
+import { getServerSession }           from 'next-auth/next';
+import { authOptions }                from '@/lib/authOptions';
+import connectToDatabase              from '@/lib/mongooseClientPromise';
+import Service, { IService }          from '@/models/Service';
+import mongoose, { Types }            from 'mongoose';
+import { createNotification }         from '@/services/notificationService';
 
-import { authOptions } from '@/lib/authOptions';
-import connectToDatabase from '@/lib/mongooseClientPromise';
-import Service, { IService } from '@/models/Service';
-
-// ─────────────────────────────────────────────────────────
-// GET  ➜  return all reviews for this service
-// ─────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────── */
+/* GET – all reviews                                           */
+/* ─────────────────────────────────────────────────────────── */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { serviceId: string } }
+  { params }: { params: Promise<{ serviceId: string }> }
 ) {
   await connectToDatabase();
-
-  const { serviceId } = params;
+  const { serviceId } = await params;
 
   const svc = await Service.findById<IService>(serviceId)
     .select('reviews')
-    .populate({ path: 'reviews.userId', select: 'name profilePictureUrl' })
+    .populate('reviews.userId', 'name profilePictureUrl')
     .lean();
 
   if (!svc) {
@@ -30,40 +28,37 @@ export async function GET(
   return NextResponse.json({ reviews: svc.reviews }, { status: 200 });
 }
 
-// ─────────────────────────────────────────────────────────
-// POST ➜ add a review (one per user, owner-blocked)
-// ─────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────── */
+/* POST – add a review                                         */
+/* ─────────────────────────────────────────────────────────── */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { serviceId: string } }
+  { params }: { params: Promise<{ serviceId: string }> }
 ) {
+  const { serviceId } = await params;
   await connectToDatabase();
 
-  /* ── authentication ─────────────────────────────── */
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
-  const token = await getToken({ req: request });
-  if (!token) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
-  const userId = token.sub!; // logged-in user
+  const userId = session.user.id;
+  const caller = session.user.name ?? 'Someone';
 
-  /* ── validate body ──────────────────────────────── */
-  const { rating, comment } = await request.json();
-    const ratingNum = Number(rating);              // ← convert once
+  /* body validation ------------------------------------------ */
+  const { rating, comment, photos = [] } = await request.json();
+  const ratingNum = Number(rating);
+  const validInc  =
+    Math.abs(ratingNum * 2 - Math.round(ratingNum * 2)) < 1e-6;
 
-    // accept 0.5 increments between 0.5 and 5
-    const validIncrement = Math.abs(ratingNum * 2 - Math.round(ratingNum * 2)) < 1e-6;
-
-    if (
-      Number.isNaN(ratingNum)                ||
-      ratingNum < 0.5 || ratingNum > 5       ||
-      !validIncrement                        // 0.5‑step guard
-    ) {
-        return NextResponse.json(
-      { message: 'Rating must be a 0.5‑step value between 0.5 and 5' },
+  if (
+    Number.isNaN(ratingNum) ||
+    ratingNum < 0.5 ||
+    ratingNum > 5 ||
+    !validInc
+  ) {
+    return NextResponse.json(
+      { message: 'Rating must be a 0.5-step value between 0.5 and 5' },
       { status: 400 }
     );
   }
@@ -71,60 +66,47 @@ export async function POST(
     return NextResponse.json({ message: 'Comment required' }, { status: 400 });
   }
 
-  /* ── fetch & mutate doc ─────────────────────────── */
-  const { serviceId } = await params;
+  /* fetch service -------------------------------------------- */
   const svc = await Service.findById<IService>(serviceId);
   if (!svc) {
     return NextResponse.json({ message: 'Service not found' }, { status: 404 });
   }
-
-  // owner cannot review own service
   if (svc.userId.toString() === userId) {
     return NextResponse.json(
-      { message: 'Owners cannot review' },
+      { message: 'Owners cannot review their own service' },
       { status: 403 }
     );
   }
-
-  // only one review per user
-  const duplicate = svc.reviews.find(
-    r => r.userId.toString() === userId
-  );
-  if (duplicate) {
+  if (svc.reviews.some(r => r.userId.toString() === userId)) {
     return NextResponse.json(
-      { message: 'You have already reviewed' },
+      { message: 'You have already reviewed this service' },
       { status: 409 }
     );
   }
 
-  // push review
+  /* push review ---------------------------------------------- */
   svc.reviews.push({
     userId: new Types.ObjectId(userId),
-    rating,
+    rating: ratingNum,
     comment,
-    createdAt: new Date()
+    createdAt: new Date(),
+    photos,
   });
-
   await svc.save();
 
+  /* notify owner --------------------------------------------- */
+  await createNotification(
+    svc.userId.toString(),
+    `${caller} reviewed your service "${svc.name}"`,
+    `/services/${svc._id}`
+  );
+
+  /* return the new review ------------------------------------ */
   const doc = await Service.findById(serviceId)
   .select('reviews')
   .populate('reviews.userId', 'name profilePictureUrl')
-  .lean();
+  .lean<Pick<IService, 'reviews'>>()          // 👈 tell TS what comes back
 
-/* ── runtime guard ─────────────────────────────────────── */
-if (!doc || Array.isArray(doc)) {
-  return NextResponse.json(
-    { message: 'Service not found' },
-    { status: 404 }
-  );
-}
-
-const { reviews } = doc;             // fully typed 🎉
-const newReview   = reviews.at(-1);  // last pushed element
-
-return NextResponse.json(
-  { review: newReview },
-  { status: 201 }
-);
+  const newReview = doc?.reviews.at(-1);
+  return NextResponse.json({ review: newReview }, { status: 201 });
 }

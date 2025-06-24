@@ -29,7 +29,34 @@ export async function POST(
     return NextResponse.json({ message: 'User not found' }, { status: 404 });
   }
 
-  const contentType = request.headers.get('content-type') || '';
+const contentType = request.headers.get('content-type') || '';
+
+  /* ── JSON body branch  (new) ─────────────────────────── */
+  if (contentType.includes('application/json')) {
+    try {
+      const { url } = await request.json();
+      if (!url)
+        return NextResponse.json(
+          { message: 'url required' },
+          { status: 400 }
+        );
+
+      user.profilePictureUrl = url;
+      await user.save();
+
+      return NextResponse.json(
+        { message: 'Profile picture updated', url },
+        { status: 200 }
+      );
+    } catch {
+      return NextResponse.json(
+        { message: 'Invalid JSON body' },
+        { status: 400 }
+      );
+    }
+  }
+
+  /* ── Multipart branch (existing) ────────────────────── */
   const busboy = Busboy({ headers: { 'content-type': contentType } });
 
   // We track all file uploads in an array of promises

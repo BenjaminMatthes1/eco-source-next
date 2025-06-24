@@ -1,4 +1,4 @@
-// NEW FILE
+
 'use client';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 

@@ -14,6 +14,7 @@ interface Review {
   rating: number;
   comment: string;
   createdAt?: Date;
+  photos?: IPhoto[];
 }
 interface PopulatedUser {
   _id: mongoose.Types.ObjectId;
@@ -95,6 +96,17 @@ const ProductSchema = new Schema<IProduct>(
         rating: { type: Number, default: 0 },
         comment: { type: String, default: '' },
         createdAt: { type: Date, default: Date.now },
+        upvotedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+        upvotes:   { type: Number, default: 0 },
+        photos: [
+          {
+            _id: { type: Schema.Types.ObjectId, auto: true },
+            url:    { type: String, required: true },
+            key:    { type: String, required: true },   // S3 / uploads key
+            name:   { type: String },
+            uploadedAt: { type: Date, default: Date.now },
+          },
+        ],
       },
     ],
     name: { type: String, required: true },

@@ -128,6 +128,22 @@ export default function PostDetailsPage() {
             className="prose prose-invert max-w-none mb-8"
             dangerouslySetInnerHTML={{ __html: marked.parse(post.content) }}
           />
+          {/* attached images */}
+            {Array.isArray(post.photos) && post.photos.length > 0 && (
+              <div className="flex flex-wrap gap-3 mb-6">
+                {post.photos.map((p: any) => (
+                  <img
+                    key={p._id}
+                    src={p.url}
+                    alt={p.name || 'post photo'}
+                    className="w-32 h-32 rounded object-cover cursor-pointer hover:brightness-90"
+                    onClick={() =>
+                      window.open(p.url, '_blank', 'noopener,noreferrer')
+                    }
+                  />
+                ))}
+              </div>
+            )}
 
           {/* up‑vote */}
           <button
@@ -225,6 +241,7 @@ function CommentBlock({
           <p className="whitespace-pre-line">{c.content}</p>
         </div>
       </div>
+
 
       <button
         aria-label="Reply"

@@ -13,14 +13,13 @@ export async function GET(request: NextRequest) {
   const search       = searchParams.get('q') || '';
   const role         = searchParams.get('role');
   
+  
  
-  const query: any = {};
-  if (role)         query.role = role;
-  if (search)       query.$text = { $search: search };   // add index on name bio
+  const query: any = { role: { $ne: 'admin' } };
 
-  if (userCategory) {
-    query.userCategory = userCategory;
-  }
+  if (role)         query.role   = role;          // ?role=admin → override
+  if (search)       query.$text  = { $search: search };
+  if (userCategory) query.userCategory = userCategory;
   
 
   try {

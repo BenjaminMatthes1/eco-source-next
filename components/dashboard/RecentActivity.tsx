@@ -1,53 +1,48 @@
-// components/dashboard/RecentActivity.tsx
+'use client';
+
 import React, { useEffect, useState } from 'react';
+import Loading from '@/components/ui/Loading';
 
-interface RecentActivityProps {
-  userId: string | undefined;
-}
+interface RecentActivityProps { userId?: string }
 
-interface Activity {
+interface Log { _id: string; action: string; timestamp: string }
+interface Notif {
   _id: string;
-  action: string;
+  message: string;
   timestamp: string;
+  link: string;
 }
 
-const RecentActivity: React.FC<RecentActivityProps> = ({ userId }) => {
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+export default function RecentActivity({ userId }: RecentActivityProps) {
+  const [items, setItems]   = useState<(Log|Notif)[]>([]);
+  const [loading, setL]     = useState(true);
+  const [error,   setErr]   = useState<string|null>(null);
 
   useEffect(() => {
-    if (userId) {
-      fetch(`/api/users/${userId}/activity-logs`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            setError(data.error);
-          } else {
-            setActivities(data);
-          }
-          setLoading(false);
-        })
-        .catch((error) => {
-          console.error('Error fetching activity logs:', error);
-          setError('Failed to load activity logs.');
-          setLoading(false);
-        });
-    }
+    if (!userId) return;
+
+    Promise.all([
+      fetch(`/api/users/${userId}/activity-logs`).then(r => r.json()),
+      fetch(`/api/users/${userId}/notifications`).then(r => r.json()),
+    ])
+      .then(([logs, notifs]) => {
+        const merged = [
+          ...(logs || []),
+          ...(notifs || []),
+        ].sort((a,b) =>
+          new Date(b.timestamp).valueOf() - new Date(a.timestamp).valueOf()
+        );
+        setItems(merged);
+      })
+      .catch(() => setErr('Could not load activity'))
+      .finally(() => setL(false));
   }, [userId]);
 
-  if (loading) {
-    return (
-      <div className="bg-neutral rounded-lg shadow-lg p-8 font-redditLight">
-        <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
-        <p>Loading...</p>
-      </div>
-    );
-  }
+  if (loading) return <Loading size={40} />;
 
   if (error) {
     return (
-      <div className="bg-neutral rounded-lg shadow-lg p-8 font-redditLight">
+      <div className="bg-neutral rounded-lg shadow-lg p-8">
         <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
         <p className="text-red-500">{error}</p>
       </div>
@@ -57,19 +52,39 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ userId }) => {
   return (
     <div className="bg-neutral rounded-lg shadow-lg p-8">
       <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
-      {activities.length > 0 ? (
-        <ul className="list-disc list-inside text-lg font-redditLight">
-          {activities.map((activity) => (
-            <li key={activity._id}>
-              {activity.action} - {new Date(activity.timestamp).toLocaleString()}
+
+      {items.length ? (
+        <ul className="space-y-2 text-sm font-redditLight">
+          {items.map((it: any) => (
+            <li key={it._id}>
+              {'link' in it ? (
+                <span className="flex items-start gap-2 group">
+                  <a href={it.link} className="flex-1 hover:underline">
+                    {it.message}
+                  </a>
+                  <button
+                    className="text-sm opacity-0 group-hover:opacity-100"
+                    onClick={async () => {
+                      await fetch(`/api/notifications/${it._id}`, { method: 'DELETE' });
+                      setItems(p => p.filter(x => x._id !== it._id));
+                    }}
+                  >
+                    X
+                  </button>
+                </span>
+              ) : (
+                it.action
+              )}
+              <span className="opacity-60">
+                {' '}
+                — {new Date(it.timestamp).toLocaleString()}
+              </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-lg font-redditLight">No recent activities.</p>
+        <p className='font-redditLight'>No recent activity.</p>
       )}
     </div>
   );
-};
-
-export default RecentActivity;
+}

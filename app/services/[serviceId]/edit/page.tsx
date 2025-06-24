@@ -7,7 +7,7 @@ import EditServiceForm from '@/components/forms/services/EditServiceForm';
 import { Service } from '@/types/types';
 
 const EditServicePage = () => {
-  const { serviceId } = useParams();
+  const { serviceId } = useParams() as { serviceId: string };
   const router          = useRouter();
 
   const [service, setService] = useState<Service | null>(null);

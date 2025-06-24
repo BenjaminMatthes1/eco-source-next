@@ -1,92 +1,62 @@
-import { createRouter, expressWrapper } from 'next-connect';
-import type { NextApiRequest, NextApiResponse } from 'next';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+// --- app/api/uploads/route.ts (replace all) ---
+import { NextRequest, NextResponse } from 'next/server';
+import { uploadFileToS3 } from '@/lib/s3Upload';
+import crypto from 'crypto';
+import mime from 'mime-types'; 
 
-// ------------------------------------
-// 1) Prepare the upload folder
-// ------------------------------------
-const uploadDirectory = path.join(process.cwd(), 'public/uploads');
-if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, { recursive: true });
+export async function POST(req: NextRequest) {
+  /* 1) multipart guard */
+  const cType = req.headers.get('content-type') ?? '';
+  if (!cType.startsWith('multipart/form-data'))
+    return NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 });
+
+  /* 2) grab file  context */
+  const form   = await req.formData();
+  const rawFile = form.get('file');                     // unknown
+  if (!(rawFile && rawFile instanceof File))
+    return NextResponse.json({ error: 'No file' }, { status: 400 });
+
+  const file = rawFile as File;                         // <─ now always File
+
+
+  /* NEW:  where (entity)  and  what (kind) are we uploading?  */
+  const entity = (form.get('entity') as string | null)?.toLowerCase(); // "product" | "service" | "user"
+  const kind   = (form.get('kind')   as string | null)?.toLowerCase(); // "photo" | "document" | "reviewphoto"
+
+  if (!entity || !kind)
+    return NextResponse.json({ error: 'entity and kind required' }, { status: 400 });
+  const ok = ['image/jpeg', 'image/png'];
+  if (!ok.includes(file.type))
+    return NextResponse.json({ error: 'Only JPEG/PNG allowed' }, { status: 415 });
+
+  /* 3) pick bucket */
+  /* map => env bucket name ------------------------------------ */
+  const folderMap: Record<string, string> = {
+  'product:document'    : 'ProductDocuments',
+  'product:photo'       : 'ProductPhotos',
+  'product:reviewphoto' : 'ProductReviewPhotos',
+  'service:document'    : 'ServiceDocuments',
+  'service:photo'       : 'ServicePhotos',
+  'service:reviewphoto' : 'ServiceReviewPhotos',
+  'user:document'       : 'UserDocuments',
+  'user:photo'          : 'UserPictures',
+  'post:photo'          : 'PostPhotos',
+  'post:document'       : 'PostDocuments',   // (future use)
+};
+
+const folder = folderMap[`${entity}:${kind}`];
+if (!folder)
+  return NextResponse.json({ error: 'Invalid entity/kind' }, { status: 400 });
+
+const key = `${folder}/${Date.now()}-${crypto.randomUUID()}-${file.name}`;
+const buffer    = Buffer.from(await file.arrayBuffer());
+const mimeType =
+  file.type ||                                   // browser-supplied
+  mime.lookup(file.name) ||                      // fallback by extension
+  'application/octet-stream';
+
+const url = await uploadFileToS3(buffer, key, mimeType);   // ← now 3 args
+
+  /* 5) respond */
+  return NextResponse.json({ url, key, name: file.name }, { status: 200 });
 }
-
-// ------------------------------------
-// 2) Configure Multer
-// ------------------------------------
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDirectory);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${file.originalname}`;
-    cb(null, uniqueSuffix);
-  },
-});
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only .pdf, .jpg, and .png files are allowed!'));
-  }
-};
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-});
-
-// ------------------------------------
-// 3) Create the router
-// ------------------------------------
-const router = createRouter<NextApiRequest, NextApiResponse>();
-
-// Optional: Provide a top-level error-handling middleware
-router.use((req, res, next) => {
-  try {
-    next();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Something went wrong!' });
-  }
-});
-
-// ------------------------------------
-// 4) Wrap Multer with `expressWrapper`
-// ------------------------------------
-router.use(expressWrapper(upload.single('file') as any));
-// Casting to `any` because Multer is typed for Express  -- you can also do a custom approach below
-
-// ------------------------------------
-// 5) POST route for file upload
-// ------------------------------------
-router.post((req, res) => {
-  const file = (req as any).file; // Because `req` is a NextApiRequest, not an Express Request
-  if (!file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-  const fileUrl = `/uploads/${file.filename}`;
-  res.status(200).json({ url: fileUrl, name: file.originalname });
-});
-
-// ------------------------------------
-// 6) "No match" fallback
-// ------------------------------------
-router.all((req, res) => {
-  // This will catch any other methods like PUT, DELETE, etc.
-  res.status(405).json({ error: 'Method not allowed' });
-});
-
-// ------------------------------------
-// 7) Export final handler
-// ------------------------------------
-export default router.handler();
-
-// Important for Next.js to let Multer handle the body:
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

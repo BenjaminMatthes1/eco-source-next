@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Optionally compute an ERS score from `chosenMetrics` + `metrics`
+    // Optionally compute an ERS score from `chosenMetrics`  `metrics`
     // You must update your `calculateERSProductScore` to handle the new approach.
     const ersScore = calculateERSItemScore({ chosenMetrics, metrics });
 
@@ -81,30 +81,60 @@ export async function GET(request: NextRequest) {
   await connectToDatabase();
 
   const { searchParams } = new URL(request.url);
-  const category = searchParams.get('category');
-  const search   = searchParams.get('q') || '';          // keyword
-  const minPrice = Number(searchParams.get('minPrice'));
-  const maxPrice = Number(searchParams.get('maxPrice'));
+  const search   = searchParams.get('q')        || '';      // keyword
+  const category = searchParams.get('category') || '';
+  const minRaw = searchParams.get('minPrice');
+  const maxRaw = searchParams.get('maxPrice');
+  const minPrice = minRaw ? Number(minRaw) : undefined;
+  const maxPrice = maxRaw ? Number(maxRaw) : undefined;
 
+  /* ---------- build Mongo query ---------- */
   const query: any = {};
-  if (category) {
-    query.categories = category;
-    if (search)   query.$text = { $search: search };       // needs Mongo text index
-      if (!isNaN(minPrice) || !isNaN(maxPrice)) {
-        query.price = {};
-        if (!isNaN(minPrice)) query.price.$gte = minPrice;
-        if (!isNaN(maxPrice)) query.price.$lte = maxPrice;
-      }
+
+  // category (array field "categories")
+  if (category) query.categories = category;
+
+  // keyword regex on name OR description (case-insensitive)
+  if (search.trim()) {
+    query.$or = [
+      { name:        { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  // price range
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    query.price = {};
+    if (minPrice !== undefined) query.price.$gte = minPrice;
+    if (maxPrice !== undefined) query.price.$lte = maxPrice;
   }
 
   try {
-    // You can control which fields to select
-    // or just return everything
-    const products = await Product.find(query).lean();
+    const raw = await Product.find(query)
+      .select('name description price photos chosenMetrics metrics')
+      .lean();
+
+    // ensure overallScore
+    const { calculateERSItemScore } = await import('@/services/ersMetricsService');
+    const products = raw.map((p: any) => {
+      if (!p.metrics) p.metrics = {};
+      if (p.metrics.overallScore === undefined) {
+        p.metrics.overallScore = Math.round(
+          calculateERSItemScore({
+            chosenMetrics: p.chosenMetrics ?? [],
+            metrics:       p.metrics,
+          }).score
+        );
+      }
+      return { ...p, photos: p.photos ?? [] };  // guarantee array
+    });
 
     return NextResponse.json({ products }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json({ message: 'Error fetching products' }, { status: 500 });
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    return NextResponse.json(
+      { message: 'Error fetching products' },
+      { status: 500 }
+    );
   }
 }

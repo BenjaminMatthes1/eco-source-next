@@ -7,9 +7,8 @@
    import axios from 'axios';
    import { useSession } from 'next-auth/react';
    import { useRouter } from 'next/navigation';
-   
-  
    import { dropdownListStyle } from '@/utils/selectStyles';
+   import PhotoPicker from '@/components/forms/PhotoPicker';
    
    /* ─────────────────────────────────────────────────────────────── */
    interface IUserPreferences {
@@ -271,26 +270,37 @@
            </button>
          </form>
    
-         {/* ── Avatar ── */}
-         <div className="mt-10 bg-primary/90 p-6 rounded-lg shadow-lg space-y-4">
-           <h2 className="text-xl font-bold text-white">Avatar</h2>
-           {session?.user?.image && (
-             <img
-               src={session.user.image}
-               alt="avatar"
-               className="w-24 h-24 rounded-full object-cover"
-             />
-           )}
-           <input
-             type="file"
-             onChange={(e) => e.target.files && setAvatarFile(e.target.files[0])}
-             className="text-white"
-           />
-           <button  type="button" onClick={handleAvatarUpload} className='btn-secondary'>
-             Upload
-           </button>
-           {avatarMsg && <p className="text-sm text-white/80">{avatarMsg}</p>}
-         </div>
+         {/* ── Avatar (PhotoPicker) ── */}
+        <div className="mt-10 bg-primary/90 p-6 rounded-lg shadow-lg space-y-4">
+          <h2 className="text-xl font-bold text-white">Avatar</h2>
+
+          <PhotoPicker
+            photos={
+              session?.user?.profilePictureUrl
+                ? [{ _id: 'current', url: session.user.profilePictureUrl }]
+                : []
+            }
+            /* delete avatar = clear in DB  S3 */
+            onDelete={async () => {
+              await axios.delete(`/api/users/${userId}/avatar`);
+              router.refresh();
+            }}
+            /* upload new avatar (single file) */
+            onUpload={async (files) => {
+              if (!files.length) return;
+              const form = new FormData();
+              form.append('file', files[0]);
+              form.append('entity', 'user');
+              form.append('kind',   'photo');         // mapped to UserPictures/
+              const { data } = await axios.post('/api/uploads', form); // { url, key }
+              await axios.post(`/api/users/${userId}/avatar`, { url: data.url });
+              router.refresh();
+            }}
+          />
+          {avatarMsg && (
+            <p className="text-sm text-white/80">{avatarMsg}</p>
+          )}
+        </div>
    
          {/* ── Password ── */}
          <div className="mt-10 bg-primary/90 p-6 rounded-lg shadow-lg max-w-md">
