@@ -1,27 +1,12 @@
-/******************************************************
- * ersMetricsService.ts
- *
- * This file calculates ERS synergy metrics for:
- *   - Product/Service items (calculateERSItemScore)
- *   - User-level synergy (calculateUserLevelScore)
- *   - Overall aggregator (calculateOverallUserERSScore)
- *
- * Key changes:
- *   - Ratio-based approach for usage/production (energy, water, carbon).
- *   - Negative or >100% inputs are clamped.
- *   - Philanthropic or donation % never exceed 100.
- *   - "Certifications" or user docs can yield partial synergy points.
- ******************************************************/
+
+import { CATEGORY_WEIGHTS, SIZE_WEIGHTS, BusinessSize } from '@/config/metricRelevance';
+import { peerRatingScore } from '@/utils/reviewCredibility';
 
 export interface DynamicInputs {
   chosenMetrics: string[];
   metrics: Record<string, any>;  // synergy fields, e.g. { "energyUsage": {value,unit}, "peerCostEffectiveness": {...}, ... }
 }
 
-export interface ScoreResult {
-  score: number;         // final synergy 0..100
-  dataStatus: string;    // "INSUFFICIENT_DATA", "LIMITED_DATA", or "OK"
-}
 
 //
 // If you want a separate interface for user synergy:
@@ -29,6 +14,34 @@ export interface ScoreResult {
 export interface DynamicUserInputs {
   chosenMetrics: string[];
   metrics: Record<string, any>;
+}
+
+export interface ScoringContext {
+  category?: string;          // primary category slug
+  businessSize?: BusinessSize;
+}
+
+/* weight helper */
+function metricWeight(key: string, ctx?: ScoringContext): number {
+  let w = 1;
+  if (ctx?.category)     w *= CATEGORY_WEIGHTS[ctx.category]?.[key]     ?? 1;
+  if (ctx?.businessSize) w *= SIZE_WEIGHTS[ctx.businessSize]?.[key]     ?? 1;
+  return w;
+}
+
+/* Metric Explainer */
+export interface MetricExplainer {
+  raw: any;
+  normalised: number;   // 0-1 after unit-convert & ratio math
+  weight: number;       // context-adjusted weight
+  contribution: number; // normalised × weight
+}
+type Explanation = Record<string, MetricExplainer>;
+
+export interface ScoreResult {
+  score: number;         // final synergy 0..100
+  dataStatus: string;    // "INSUFFICIENT_DATA", "LIMITED_DATA", or "OK"
+  explanation: Explanation;
 }
 
 /** 
@@ -52,8 +65,11 @@ function parseNumeric(metricKey: string, raw: any): number {
   }
 
   // If it's { value, unit }, do your typical convertToStandard:
-  if (raw.value !== undefined && typeof raw.value === 'number') {
-    const val = clampNonNegative(raw.value);
+  if (raw.value !== undefined) {
+    const val =
+     typeof raw.value === 'number'
+       ? clampNonNegative(raw.value)
+       : clampNonNegative(parseFloat(raw.value));
     const unit = typeof raw.unit === 'string' ? raw.unit : '';
     return convertToStandard(val, unit, metricKey);
   }
@@ -169,23 +185,7 @@ function scoreCarbonWithRatio(carbon: number, offsets: number): number {
   return Math.max(0, 1 - ratio);
 }
 
-/** Peer rating => { average, count }, partial weighting if count < 10 */
-function scorePeerRating(obj: any): number {
-  if (!obj || typeof obj.average !== 'number' || typeof obj.count !== 'number') {
-    return 0;
-  }
-  const avg = clampNonNegative(obj.average);
-  const count = clampNonNegative(obj.count);
-  if (count < 1) {
-    // no real data => subScore=0
-    return 0;
-  }
-  // base = (avg / 10) => 0..1
-  const base = Math.min(avg, 10) / 10;
-  // factor => up to 1 if count>=10
-  const factor = Math.min(count / 10, 1);
-  return base * factor;
-}
+
 
 /** e.g. packagingRecyclability => 0..100 => direct ratio. */
 function scorePercentage(rawVal: number): number {
@@ -205,8 +205,9 @@ function scoreBoolean(value: boolean): number {
  */
 
 /** ---------------  ITEM-LEVEL SCORING --------------- **/
-export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
+export function calculateERSItemScore(inputs: DynamicInputs, context?: ScoringContext): ScoreResult {
   const { chosenMetrics, metrics } = inputs;
+  const explain: Explanation = {};
   let totalScore = 0;
   let totalWeight = 0;
   let knownCount = 0;
@@ -226,12 +227,14 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
 
   for (const key of chosenMetrics) {
     const rawVal = metrics[key];
+    const w = metricWeight(key, context);
     if (rawVal === undefined || rawVal === 'N/A') {
-      continue; // skip
+       /* field not provided → ignore weight & score */
+      continue; 
     }
     if (rawVal === 'unknown') {
       // penalize => subScore=0, weight=1
-      totalWeight++;
+      totalWeight += w;          // penalise with weighted 0
       continue;
     }
     knownCount++;
@@ -258,8 +261,9 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
           let combined = recycleRatio + renewRatio;
           // if you want to limit it, you can do if (combined>1) combined=1
           if (combined > 1) combined=1;
-          totalScore += combined;
-          totalWeight++;
+          totalScore  += combined * w;
+          totalWeight += w;
+          explain[key] = { raw: rawVal, normalised: combined, weight: w, contribution: combined * w };
         }
         break;
       }
@@ -268,60 +272,100 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
       // otherwise skip so we don't double-count
       case 'energyUsage':
         // We already computed energySub. Let's add it once:
-        totalScore += energySub;
-        totalWeight++;
+        totalScore  += energySub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: energySub, weight: w, contribution: energySub * w };
         break;
       case 'energyProduction':
+        explain[key] = {
+          raw: rawVal,
+          normalised: energySub,   // same ratio value
+          weight: w,
+          contribution: 0,         // not counted
+        };
         // skip to avoid double count
         break;
 
       // water
       case 'waterUsage':
-        totalScore += waterSub;
-        totalWeight++;
+        totalScore  += waterSub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: waterSub, weight: w, contribution: waterSub * w };
         break;
       case 'waterRecycled':
+        explain[key] = {
+          raw: rawVal,
+          normalised: waterSub,   // same ratio value
+          weight: w,
+          contribution: 0,         // not counted
+        };
         // skip
         break;
 
       // carbon
       case 'carbonEmissions':
-        totalScore += carbonSub;
-        totalWeight++;
+        totalScore  += carbonSub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: carbonSub, weight: w, contribution: carbonSub * w };
         break;
       case 'carbonOffsets':
+        explain[key] = {
+          raw: rawVal,
+          normalised: carbonSub,   // same ratio value
+          weight: w,
+          contribution: 0,         // not counted
+        };
         // skip
         break;
 
       // packaging => 0..100 => ratio
       case 'packagingRecyclability': {
         const pct = typeof rawVal === 'number' ? rawVal : parseFloat(rawVal);
-        totalScore += scorePercentage(pct);
-        totalWeight++;
+        totalScore  += scorePercentage(pct) * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: scorePercentage(pct), weight: w, contribution: scorePercentage(pct) * w };
         break;
       }
 
       // boolean => e.g. recyclable
       case 'recyclable': {
         const boolVal = !!rawVal;
-        totalScore += scoreBoolean(boolVal);
-        totalWeight++;
+        totalScore  += scoreBoolean(boolVal) * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: scoreBoolean(boolVal), weight: w, contribution: scoreBoolean(boolVal) * w };
+        break;
+      }
+
+      // localSourcing => 0–100 %
+      case 'localSourcing': {
+        const pct   = typeof rawVal === 'number' ? rawVal : parseFloat(rawVal);
+        const norm  = scorePercentage(pct);
+        totalScore  += norm * w;
+        totalWeight += w;
+        explain[key] = {
+          raw: rawVal,
+          normalised: norm,
+          weight: w,
+          contribution: norm * w,
+        };
         break;
       }
 
       // costEffectiveness => { average, count }
       case 'costEffectiveness': {
-        const sub = scorePeerRating(rawVal);
-        totalScore += sub;
-        totalWeight++;
+        const sub = peerRatingScore(rawVal);
+        totalScore  += sub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: sub, weight: w, contribution: sub * w };
         break;
       }
 
       // economicViability => { average, count }
       case 'economicViability': {
-        const sub = scorePeerRating(rawVal);
+        const sub = peerRatingScore(rawVal);
         totalScore += sub;
         totalWeight++;
+        explain[key] = { raw: rawVal, normalised: sub, weight: w, contribution: sub * w };
         break;
       }
 
@@ -330,8 +374,9 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
         if (Array.isArray(rawVal)) {
           // e.g. each practice => +0.2 up to 1
           const subScore = Math.min(rawVal.length * 0.2, 1);
-          totalScore += subScore;
-          totalWeight++;
+          totalScore  += subScore * w;
+          totalWeight += w;
+          explain[key] = { raw: rawVal, normalised: subScore, weight: w, contribution: subScore * w };
         }
         break;
 
@@ -351,8 +396,9 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
           const rawScore = verified + pending * 0.5;
         
           /* full weight once combined‑score ≥ 5 */
-          totalScore  += Math.min(rawScore / 5, 1);   // 0 … 1
-          totalWeight++;
+          totalScore  += Math.min(rawScore / 5, 1) * w;
+          totalWeight += w;
+          explain[key] = { raw: rawVal, normalised: rawScore, weight: w, contribution: rawScore * w };
           break;
         }
 
@@ -364,21 +410,22 @@ export function calculateERSItemScore(inputs: DynamicInputs): ScoreResult {
 
   // Data checks
   if (knownCount < 3) {
-    return { score: 0, dataStatus: 'INSUFFICIENT_DATA' };
+    return { score: 0, dataStatus: 'INSUFFICIENT_DATA', explanation: explain };
   }
   let dataStatus = knownCount <= 5 ? 'LIMITED_DATA' : 'OK';
 
   if (totalWeight === 0) {
-    return { score: 0, dataStatus: 'INSUFFICIENT_DATA' };
+    return { score: 0, dataStatus: 'INSUFFICIENT_DATA', explanation: explain };
   }
 
   const final = Math.round((totalScore / totalWeight) * 100);
-  return { score: final, dataStatus };
+  return { score: final, dataStatus, explanation: explain };
 }
 
 /** ---------------  USER-LEVEL SCORING --------------- **/
-export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult {
+export function calculateUserLevelScore(inputs: DynamicUserInputs, context?: ScoringContext): ScoreResult {
   const { chosenMetrics, metrics } = inputs;
+  const explain: Explanation = {};
   let totalScore = 0;
   let totalWeight = 0;
   let knownCount = 0;
@@ -396,9 +443,11 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
 
   for (const key of chosenMetrics) {
     const rawVal = metrics[key];
-    if (rawVal === undefined || rawVal === 'N/A') continue;
+    const w = metricWeight(key, context);
+    if (rawVal === undefined || rawVal === 'N/A')
+      continue; 
     if (rawVal === 'unknown') {
-      totalWeight++;
+      totalWeight += w;
       continue;
     }
     knownCount++;
@@ -406,19 +455,33 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
     switch (key) {
       // totalEnergy => we do ratio once:
       case 'totalEnergyConsumption':
-        totalScore += energySub;
-        totalWeight++;
+        totalScore  += energySub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: energySub, weight: w, contribution: energySub * w };
         break;
       case 'totalEnergyProduction':
+        explain[key] = {
+          raw: rawVal,
+          normalised: energySub,   // same ratio value
+          weight: w,
+          contribution: 0,         // not counted
+        };
         // skip double
         break;
 
       // totalCarbon => ratio
       case 'totalCarbonFootprint':
-        totalScore += carbonSub;
-        totalWeight++;
+        totalScore  += carbonSub * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: carbonSub, weight: w, contribution: carbonSub * w };
         break;
       case 'carbonOffsets':
+        explain[key] = {
+          raw: rawVal,
+          normalised: carbonSub,   // same ratio value
+          weight: w,
+          contribution: 0,         // not counted
+        };
         // skip double
         break;
 
@@ -428,8 +491,9 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
         let num = parseFloat(rawVal);
         if (Number.isNaN(num)) num=0;
         num = Math.max(0, Math.min(100, num)); // 0..100
-        totalScore += num / 100;
-        totalWeight++;
+        totalScore  += (num / 100) * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: num, weight: w, contribution: num * w };
         break;
       }
 
@@ -440,36 +504,42 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
         const verified  = docs.filter(d => d.verified).length;
         const pending   = docs.filter(d => !d.verified && !d.rejectionReason).length;
         const rawScore  = verified + pending * 0.5;   // pending worth half
-        totalScore += Math.min(rawScore / 5, 1);      // weight caps at 1
-        totalWeight++;
+        totalScore  += Math.min(rawScore / 5, 1) * w;
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: rawScore, weight: w, contribution: rawScore * w };
         break;
       }
 
       // volunteerPrograms => boolean or numeric hours
-      case 'volunteerPrograms':
+      case 'volunteerPrograms': {
+        let sub = 0;
         if (typeof rawVal === 'boolean') {
-          totalScore += rawVal ? 1 : 0;
-          totalWeight++;
+          sub = rawVal ? 1 : 0;
         } else if (typeof rawVal === 'number') {
-          // e.g. 50 hours => subScore= 50/1000 => 0.05
           let hours = clampNonNegative(rawVal);
-          if (hours>1000) hours=1000; // cap
-          totalScore += hours / 1000; 
-          totalWeight++;
+          if (hours > 1000) hours = 1000; // cap
+          sub = hours / 1000;             // 0–1
         }
+        totalScore  += sub * w;           // ← apply weight
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: sub, weight: w, contribution: sub * w };
         break;
+      }
 
       // supplierEthics => 0..100 => ratio
-      case 'supplierEthics':
+      case 'supplierEthics': {
+        let sub = 0;
         if (typeof rawVal === 'number') {
           const val = Math.max(0, Math.min(100, rawVal));
-          totalScore += val / 100;
-          totalWeight++;
+          sub = val / 100;
         } else if (typeof rawVal === 'boolean') {
-          totalScore += rawVal ? 1 : 0;
-          totalWeight++;
+          sub = rawVal ? 1 : 0;
         }
+        totalScore  += sub * w;           // ← apply weight
+        totalWeight += w;
+        explain[key] = { raw: rawVal, normalised: sub, weight: w, contribution: sub * w };
         break;
+      }
 
       default:
         break;
@@ -477,16 +547,16 @@ export function calculateUserLevelScore(inputs: DynamicUserInputs): ScoreResult 
   }
 
   if (knownCount < 3) {
-    return { score: 0, dataStatus: 'INSUFFICIENT_DATA' };
+    return { score: 0, dataStatus: 'INSUFFICIENT_DATA', explanation: explain };
   }
   let dataStatus = knownCount <= 5 ? 'LIMITED_DATA' : 'OK';
 
   if (totalWeight === 0) {
-    return { score: 0, dataStatus: 'INSUFFICIENT_DATA' };
+    return { score: 0, dataStatus: 'INSUFFICIENT_DATA', explanation: explain };
   }
 
   const final = Math.round((totalScore / totalWeight) * 100);
-  return { score: final, dataStatus };
+  return { score: final, dataStatus, explanation: explain };
 }
 
 /**
@@ -496,23 +566,18 @@ export function calculateOverallUserERSScore(
   userItems: DynamicInputs[], // e.g. product + service synergy objects
   userProfile: DynamicInputs  // user synergy
 ): ScoreResult {
-  let itemSum = 0;
-  let itemCount = 0;
+  const itemResults = userItems.map((i) => calculateERSItemScore(i));
+  const itemSum     = itemResults.reduce((s, r) => s + r.score, 0);
+  const itemCount   = itemResults.length;
   let anyInsufficient = false;
   let limitedCount = 0;
 
   // average item synergy
-  userItems.forEach((item) => {
-    const itemRes = calculateERSItemScore(item);
-    itemSum += itemRes.score;
-    itemCount++;
-    if (itemRes.dataStatus === 'INSUFFICIENT_DATA') {
-      anyInsufficient = true;
-    } else if (itemRes.dataStatus === 'LIMITED_DATA') {
-      limitedCount++;
-    }
-  });
-  const avgItemScore = itemCount > 0 ? itemSum / itemCount : 0;
+  itemResults.forEach((r) => {
+      if (r.dataStatus === 'INSUFFICIENT_DATA') anyInsufficient = true;
+      else if (r.dataStatus === 'LIMITED_DATA') limitedCount++;
+    });
+    const avgItemScore = itemCount > 0 ? itemSum / itemCount : 0;
 
   // user synergy
   const userRes = calculateUserLevelScore({
@@ -535,8 +600,9 @@ export function calculateOverallUserERSScore(
     dataStatus = 'LIMITED_DATA';
   }
 
-  return {
+   return {
     score: Math.round(Math.max(0, Math.min(100, finalScore))),
     dataStatus,
+    explanation: {},         // ← satisfies ScoreResult shape
   };
 }

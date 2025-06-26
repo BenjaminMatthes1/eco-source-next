@@ -57,6 +57,7 @@ export interface IUser extends Document {
   uploadedDocuments: UploadedDocument[];
   isVerified: boolean;
   verificationPending: boolean;
+  businessSize?: 'micro' | 'small' | 'medium' | 'large';
 
   // references to products, services, posts, etc.
   product: mongoose.Types.ObjectId[];
@@ -106,6 +107,11 @@ const UserSchema: Schema<IUser> = new Schema(
     companyName: { type: String },
     website: { type: String },
     preferences: { type: PreferencesSchema, default: () => ({}) },
+    businessSize: {
+     type: String,
+     enum: ['micro', 'small', 'medium', 'large'],
+     default: 'small',
+    },
 
 
     chosenMetrics: {

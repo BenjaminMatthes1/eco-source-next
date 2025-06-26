@@ -25,7 +25,15 @@ export async function GET(
       return NextResponse.json({ message: 'Product not found.' }, { status: 404 });
     }
 
-    return NextResponse.json({ product /*, ersScore*/ }, { status: 200 });
+    const ers = calculateERSItemScore(
+      {
+        chosenMetrics: product.chosenMetrics ?? [],
+        metrics:       product.metrics       ?? {},
+      },
+      { category: product.categories?.[0] }
+    );
+
+    return NextResponse.json({ product, ers }, { status: 200 });
   } catch (error) {
     console.error('Error fetching product:', error);
     return NextResponse.json({ message: 'Error fetching product' }, { status: 500 });

@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       subscribeNewsletter,
       companyName,
       website,
+      businessSize = 'small'
     } = await request.json();
 
     // Ensure required fields are present
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       subscribeNewsletter,
       companyName,
       website,
+      businessSize,
     });
 
     await user.save();

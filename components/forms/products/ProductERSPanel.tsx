@@ -6,6 +6,9 @@ import MetricCard      from '@/components/ui/metricCard';
 import { metricLabel } from '@/utils/metricOptions';
 import { calculateERSItemScore } from '@/services/ersMetricsService';
 import axios from 'axios';
+import WhyScoreModal from '@/components/ui/WhyScoreModal';
+
+
 
 /* ----- helpers ------------------------------------ */
 interface PeerRating { userId: string; rating: number }
@@ -67,10 +70,12 @@ const ProductERSPanel: React.FC<Props> = ({
   /* local form state */
   const [local, setLocal] = useState({ cost: '', econ: '', error: '' });
 
-  const ersScore =
+  const { score: ersScore, explanation } =
     chosen && metrics
-      ? calculateERSItemScore({ chosenMetrics: chosen, metrics }).score
-      : null;
+      ? calculateERSItemScore({ chosenMetrics: chosen, metrics })
+      : { score: null, explanation: {} as any };
+  
+    const [showWhy, setShowWhy] = useState(false);
 
   async function submit(metric: 'costEffectiveness' | 'economicViability') {
     const val = metric === 'costEffectiveness' ? local.cost : local.econ;
@@ -90,13 +95,26 @@ const ProductERSPanel: React.FC<Props> = ({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* score ring */}
-      {ersScore !== null && (
-        <div className="flex flex-col items-center gap-2 bg-neutral p-4 rounded-md">
-          <CircularScore score={ersScore} />
-          <span className="text-secondary text-xl font-bold">Product ERS Score</span>
-        </div>
-      )}
+{ersScore !== null && (
+  <div className="flex flex-col items-center gap-2 bg-neutral p-4 rounded-md">
+    <div className="flex items-center gap-2">
+      <CircularScore score={ersScore} />
+      <button
+        onClick={() => setShowWhy(true)}
+        title="Why this score?"
+        className="text-secondary underline text-sm"
+      >
+        Why?
+      </button>
+    </div>
+    <span className="text-secondary text-xl font-bold">Product ERS Score</span>
+    <WhyScoreModal
+      open={showWhy}
+      onClose={() => setShowWhy(false)}
+      explanation={explanation}
+    />
+  </div>
+)}
 
       {/* metrics */}
       <div className="grid md:grid-cols-2 gap-4">

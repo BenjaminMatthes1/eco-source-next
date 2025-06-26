@@ -76,6 +76,7 @@ export async function PUT(
       preferences,
       chosenMetrics,
       metrics,
+      businessSize,
       // etc. any other user fields
     } = body;
 
@@ -93,6 +94,7 @@ export async function PUT(
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
+    if (businessSize)   user.businessSize = businessSize;
 
     // Overwrite chosenMetrics & metrics:
     if (chosenMetrics) user.chosenMetrics = chosenMetrics;

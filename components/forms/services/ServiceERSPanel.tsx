@@ -4,6 +4,7 @@ import MetricCard      from '@/components/ui/metricCard';
 import { metricLabel } from '@/utils/metricOptions';
 import { calculateERSItemScore } from '@/services/ersMetricsService';
 import axios from 'axios';
+import WhyScoreModal from '@/components/ui/WhyScoreModal';
 
 /* -------------------------------------------------- *
  * 1)  Type‑helpers that match the actual DB shape    *
@@ -76,10 +77,15 @@ const ServiceERSPanel: React.FC<Props> = ({
   const mineCost = peerRatings.costEffectiveness.find(r => r.userId === userId)?.rating ?? null;
   const mineEcon = peerRatings.economicViability.find(r => r.userId === userId)?.rating ?? null;
 
-  const ersScore =
+  const {
+    score: ersScore,
+    explanation,
+  } =
     chosen && metrics
-      ? calculateERSItemScore({ chosenMetrics: chosen, metrics }).score
-      : null;
+      ? calculateERSItemScore({ chosenMetrics: chosen, metrics })
+      : { score: null, explanation: {} as any };
+
+  const [showWhy, setShowWhy] = useState(false);
 
   /* submit helper */
   async function send(metric: 'costEffectiveness' | 'economicViability') {
@@ -118,10 +124,23 @@ const ServiceERSPanel: React.FC<Props> = ({
       {/* ---- headline & score ring ---- */}
       {ersScore !== null && (
         <div className="flex flex-col items-center gap-2 bg-neutral p-4 rounded-md">
-          <CircularScore score={ersScore} />
+          <div className="flex items-center gap-2">
+            <CircularScore score={ersScore} />
+            <button
+              onClick={() => setShowWhy(true)}
+              className="text-secondary underline text-sm"
+            >
+              Why?
+            </button>
+          </div>
           <span className="text-secondary text-xl font-bold">
-            Service ERS Score
+            Service ERS Score
           </span>
+          <WhyScoreModal
+            open={showWhy}
+            onClose={() => setShowWhy(false)}
+            explanation={explanation}
+          />
         </div>
       )}
 

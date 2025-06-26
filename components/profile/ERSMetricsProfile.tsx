@@ -7,9 +7,11 @@ import {
   calculateUserLevelScore,
   DynamicInputs,
 } from '@/services/ersMetricsService';
+import React, { useState } from 'react';
+import WhyScoreModal from '@/components/ui/WhyScoreModal';
 
 /* ------------------------------------------------------------------ */
-/*  1. helpers: unit lookup + value formatter                          */
+/*  1. helpers: unit lookup    value formatter                          */
 /* ------------------------------------------------------------------ */
 const energyKeys  = ['totalEnergyConsumption', 'totalEnergyProduction'];
 const waterKeys   = ['totalWaterUse'];
@@ -111,17 +113,34 @@ export default function ERSMetricsProfile({
   overall,
 }: DynamicInputs & { overall?: number }) {
   /* compute overall if API omitted it */
-  const score = useMemo(() => {
-    if (overall !== undefined) return overall;
-    return Math.round(
-      calculateUserLevelScore({ chosenMetrics, metrics }).score
-    );
+  const {
+    score,
+    explanation,
+  } = useMemo(() => {
+    if (overall !== undefined)
+      return { score: overall, explanation: {} as any };
+    return calculateUserLevelScore({ chosenMetrics, metrics });
   }, [overall, chosenMetrics, metrics]);
+
+  const [showWhy, setShowWhy] = useState(false);
 
   return (
     <div className="bg-neutral rounded-lg shadow p-6 text-primary w-full">
       <div className="flex flex-col md:flex-row gap-6 items-center">
-        <CircularScore score={score} size={120} stroke={12} />
+        <div className="flex items-center gap-2">
+          <CircularScore score={score} size={120} stroke={12} />
+          <button
+            onClick={() => setShowWhy(true)}
+            className="text-secondary underline text-xs"
+          >
+            Why?
+          </button>
+          <WhyScoreModal
+            open={showWhy}
+            onClose={() => setShowWhy(false)}
+            explanation={explanation}
+          />
+        </div>
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           {chosenMetrics.map((k) => (

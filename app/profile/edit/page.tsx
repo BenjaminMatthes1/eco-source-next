@@ -57,6 +57,7 @@
        linkedin: '',
        website: '',
      });
+     const [businessSize, setBusinessSize] = useState<'micro' | 'small' | 'medium' | 'large'>('small');
    
      /* avatar */
      const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -84,12 +85,14 @@
            setCompanyName(u.companyName ?? '');
            setLocation(u.location ?? '');
            setPrefs({ ...prefs, ...u.preferences });
+           setBusinessSize((u as any).businessSize ?? 'small');
          } catch (err) {
            console.error(err);
            setError('Failed to load profile.');
          } finally {
            setLoading(false);
          }
+         
        })();
      // eslint-disable-next-line react-hooks/exhaustive-deps
      }, [userId]);
@@ -122,6 +125,7 @@
           companyName,
           location,
           preferences: prefs,
+          businessSize,
         });
         setSuccessMsg('Profile updated successfully!'); // ← show note
         router.refresh();                               // ← refresh data
@@ -208,6 +212,21 @@
                className="block w-full bg-transparent text-white border-b border-white focus:border-secondary focus:outline-none"
              />
            </div>
+
+          {/* Business Size */}
+           <div>
+            <label className="block text-sm font-medium text-white mb-1">Business Size</label>
+            <select
+              value={businessSize}
+              onChange={(e) => setBusinessSize(e.target.value as any)}
+              className="block w-full bg-transparent text-white border-b border-white focus:border-secondary focus:outline-none"
+            >
+              <option value="micro">Micro (&lt; 10 employees)</option>
+              <option value="small">Small (10–49)</option>
+              <option value="medium">Medium (50–249)</option>
+              <option value="large">Large (250+)</option>
+            </select>
+          </div>
    
            {/* location */}
            <div>

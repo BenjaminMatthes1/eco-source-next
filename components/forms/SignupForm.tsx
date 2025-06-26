@@ -23,6 +23,7 @@ const SignupForm: React.FC = () => {
     subscribeNewsletter: false,
     companyName: '',
     website: '',
+    businessSize: 'small',
   });
 
   // Toggle password visibility
@@ -186,6 +187,24 @@ const SignupForm: React.FC = () => {
                   <option value="company">Company</option>
                 </select>
               </div>
+
+              {/* Business Size */}
+              <label htmlFor="businessSize" className="block text-sm font-medium text-white">
+                Business Size
+              </label>
+              <select
+                id="businessSize"
+                name="businessSize"
+                value={formData.businessSize}
+                onChange={handleChange}
+                className="mt-1 block w-full text-white bg-transparent border-b border-white
+                          focus:border-secondary focus:outline-none focus:ring-0 sm:text-sm"
+              >
+                <option value="micro">Micro (&lt; 10 employees)</option>
+                <option value="small">Small (10–49)</option>
+                <option value="medium">Medium (50–249)</option>
+                <option value="large">Large (250+)</option>
+              </select>
 
               {/* Interests */}
               <div>

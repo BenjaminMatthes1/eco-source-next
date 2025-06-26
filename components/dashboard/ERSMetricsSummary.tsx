@@ -10,6 +10,7 @@ import CircularScore from '../ui/circularScore';
 import {
   calculateUserLevelScore,   // ← exported earlier
 } from '@/services/ersMetricsService';
+import WhyScoreModal from '../ui/WhyScoreModal';
 
 interface Props { userId: string }
 
@@ -141,13 +142,16 @@ const ERSMetricsSummary: React.FC<Props> = ({ userId }) => {
     );
   }, [doc]);
 
-  const {
-    score: overall,
-    dataStatus,
-  } = useMemo(
-    () => (doc ? calculateUserLevelScore(doc) : { score: 0, dataStatus: '' }),
-    [doc]
-  );
+const {
+  score: overall,
+  dataStatus,
+  explanation,
+} = useMemo(
+  () => (doc ? calculateUserLevelScore(doc) : { score: 0, dataStatus: '', explanation: {} }),
+  [doc]
+);
+
+const [showWhy, setShowWhy] = useState(false);
 
   if (loading) return <p>Loading…</p>;
   if (err)      return <p className="text-error">{err}</p>;
@@ -164,10 +168,24 @@ const ERSMetricsSummary: React.FC<Props> = ({ userId }) => {
       {/* top row ------------------------------------------------- */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 font-redditLight">
         <div className="flex flex-col items-center">
-          <CircularScore score={overall} size={120} stroke={14} />
+      <div className="flex items-center gap-2">
+        <CircularScore score={overall} size={120} stroke={14} />
+        <button
+          onClick={() => setShowWhy(true)}
+          className="text-secondary underline text-xs"
+        >
+          Why?
+        </button>
+      </div>
           <p className="mt-1 text-sm opacity-80">
             Data&nbsp;status: <strong>{dataStatus}</strong>
           </p>
+          <WhyScoreModal
+            open={showWhy}
+            onClose={() => setShowWhy(false)}
+            explanation={explanation}
+            title="Why this user score?"
+          />
         </div>
 
         <div className="flex-1 grid grid-cols-2 gap-4">
